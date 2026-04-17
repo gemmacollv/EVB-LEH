@@ -1,0 +1,4 @@
+Input PDB: inputs/trp_cage_1l2y_model1.pdb
+Output PDB: study_runs/01_clean_pdb/cleaned.pdb
+Atoms totals: 154
+Accio: normalitzacio del PDB d'entrada.

@@ -38,22 +38,22 @@ def main() -> None:
     output_pdb = args.output_dir / "protonated.pdb"
     write_pdb(modeller.topology, modeller.positions, output_pdb)
 
-    system = build_system(modeller.topology, args.temperature, with_barostat=False)
-    (args.output_dir / "summary.txt").write_text(
-        "\n".join(
-            [
-                f"Input PDB: {args.input_pdb}",
-                f"Output PDB: {output_pdb}",
-                f"pH: {args.ph}",
-                "Force field: amber14-all.xml + amber14/tip3p.xml",
-                f"Atoms totals: {modeller.topology.getNumAtoms()}",
-                f"Forces al sistema: {system.getNumForces()}",
-                "Nota: les carregues parcials s'assignen en crear el sistema amb el force field.",
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    # system = build_system(modeller.topology, args.temperature, with_barostat=False)
+    # (args.output_dir / "summary.txt").write_text(
+    #     "\n".join(
+    #         [
+    #             f"Input PDB: {args.input_pdb}",
+    #             f"Output PDB: {output_pdb}",
+    #             f"pH: {args.ph}",
+    #             "Force field: amber14-all.xml + amber14/tip3p.xml",
+    #             f"Atoms totals: {modeller.topology.getNumAtoms()}",
+    #             f"Forces al sistema: {system.getNumForces()}",
+    #             "Nota: les carregues parcials s'assignen en crear el sistema amb el force field.",
+    #         ]
+    #     )
+    #     + "\n",
+    #     encoding="utf-8",
+    # )
     print(f"Proteina protonada desada a {output_pdb}")
 
 
