@@ -18,8 +18,18 @@ Els passos que segueix ara el repositori són:
 
 ## Pas 1. Netejar PDB
 
+Comanda ràpida:
+
 ```bash
 bash scripts/run_clean_pdb.sh
+```
+
+Comanda explícita:
+
+```bash
+python scripts/01_clean_pdb.py \
+  --input-pdb inputs/trp_cage_1l2y_model1.pdb \
+  --output-dir study_runs/01_clean_pdb
 ```
 
 Sortida esperada:
@@ -29,8 +39,20 @@ Sortida esperada:
 
 ## Pas 2. Afegir protonació i carregues
 
+Comanda ràpida:
+
 ```bash
 bash scripts/run_add_protonation.sh
+```
+
+Comanda explícita:
+
+```bash
+python scripts/02_add_protonation.py \
+  --input-pdb study_runs/01_clean_pdb/cleaned.pdb \
+  --output-dir study_runs/02_protonation \
+  --ph 7.0 \
+  --temperature 300.0
 ```
 
 Sortida esperada:
@@ -40,8 +62,18 @@ Sortida esperada:
 
 ## Pas 3. Preparar variants
 
+Comanda ràpida:
+
 ```bash
 bash scripts/run_prepare_variants.sh
+```
+
+Comanda explícita:
+
+```bash
+python scripts/03_prepare_variants.py \
+  --input-pdb study_runs/02_protonation/protonated.pdb \
+  --output-dir study_runs/03_variants
 ```
 
 Sortida esperada:
@@ -56,8 +88,29 @@ Nota:
 
 ## Pas 4. Dinàmica molecular
 
+Comanda ràpida:
+
 ```bash
 bash scripts/run_md_study.sh
+```
+
+Comanda explícita:
+
+```bash
+python scripts/04_run_md.py \
+  --input-pdb study_runs/03_variants/protein_only.pdb \
+  --output-dir study_runs/04_md \
+  --ph 7.0 \
+  --padding-nm 1.2 \
+  --ionic-strength 0.15 \
+  --temperature 300.0 \
+  --friction 1.0 \
+  --timestep-fs 2.0 \
+  --report-interval 500 \
+  --minimize-iterations 5000 \
+  --nvt-steps 25000 \
+  --npt-steps 100000 \
+  --production-steps 250000
 ```
 
 Sortida esperada:
@@ -71,8 +124,19 @@ Sortida esperada:
 
 ## Pas 5. Analisi
 
+Comanda ràpida:
+
 ```bash
 bash scripts/run_basic_analysis.sh
+```
+
+Comanda explícita:
+
+```bash
+python scripts/05_analyze_basic.py \
+  --topology study_runs/04_md/production_final.pdb \
+  --trajectory study_runs/04_md/production_production_trajectory.dcd \
+  --output-dir study_runs/05_analysis
 ```
 
 Sortida esperada:
@@ -88,3 +152,43 @@ Sortida esperada:
 - El model triat és explícitament el `model 1` de l'entrada NMR `1L2Y`.
 - Si es vol comparar amb altres estructures de l'ensamblat NMR, caldria generar nous fitxers d'entrada per a cada model.
 - L'analisi necessita `mdtraj`, que no està instal·lat actualment en aquest entorn.
+
+## Execució completa
+
+Si vols copiar i enganxar tot el protocol seguit:
+
+```bash
+python scripts/01_clean_pdb.py \
+  --input-pdb inputs/trp_cage_1l2y_model1.pdb \
+  --output-dir study_runs/01_clean_pdb
+
+python scripts/02_add_protonation.py \
+  --input-pdb study_runs/01_clean_pdb/cleaned.pdb \
+  --output-dir study_runs/02_protonation \
+  --ph 7.0 \
+  --temperature 300.0
+
+python scripts/03_prepare_variants.py \
+  --input-pdb study_runs/02_protonation/protonated.pdb \
+  --output-dir study_runs/03_variants
+
+python scripts/04_run_md.py \
+  --input-pdb study_runs/03_variants/protein_only.pdb \
+  --output-dir study_runs/04_md \
+  --ph 7.0 \
+  --padding-nm 1.2 \
+  --ionic-strength 0.15 \
+  --temperature 300.0 \
+  --friction 1.0 \
+  --timestep-fs 2.0 \
+  --report-interval 500 \
+  --minimize-iterations 5000 \
+  --nvt-steps 25000 \
+  --npt-steps 100000 \
+  --production-steps 250000
+
+python scripts/05_analyze_basic.py \
+  --topology study_runs/04_md/production_final.pdb \
+  --trajectory study_runs/04_md/production_production_trajectory.dcd \
+  --output-dir study_runs/05_analysis
+```

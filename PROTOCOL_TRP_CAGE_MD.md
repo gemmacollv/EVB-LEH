@@ -42,6 +42,14 @@ Llançament:
 bash scripts/run_clean_pdb.sh
 ```
 
+Línies de codi:
+
+```bash
+python scripts/01_clean_pdb.py \
+  --input-pdb inputs/trp_cage_1l2y_model1.pdb \
+  --output-dir study_runs/01_clean_pdb
+```
+
 ## 4. Estat de protonació i carregues
 
 En aquest pas es fa:
@@ -60,6 +68,16 @@ Llançament:
 bash scripts/run_add_protonation.sh
 ```
 
+Línies de codi:
+
+```bash
+python scripts/02_add_protonation.py \
+  --input-pdb study_runs/01_clean_pdb/cleaned.pdb \
+  --output-dir study_runs/02_protonation \
+  --ph 7.0 \
+  --temperature 300.0
+```
+
 ## 5. Variants: proteina + lligands i nomes proteina
 
 Script:
@@ -70,6 +88,14 @@ Llançament:
 
 ```bash
 bash scripts/run_prepare_variants.sh
+```
+
+Línies de codi:
+
+```bash
+python scripts/03_prepare_variants.py \
+  --input-pdb study_runs/02_protonation/protonated.pdb \
+  --output-dir study_runs/03_variants
 ```
 
 En el Trp-cage `1L2Y` no hi ha lligands, així que les dues variants acaben sent equivalents.
@@ -94,6 +120,25 @@ Llançament:
 bash scripts/run_md_study.sh
 ```
 
+Línies de codi:
+
+```bash
+python scripts/04_run_md.py \
+  --input-pdb study_runs/03_variants/protein_only.pdb \
+  --output-dir study_runs/04_md \
+  --ph 7.0 \
+  --padding-nm 1.2 \
+  --ionic-strength 0.15 \
+  --temperature 300.0 \
+  --friction 1.0 \
+  --timestep-fs 2.0 \
+  --report-interval 500 \
+  --minimize-iterations 5000 \
+  --nvt-steps 25000 \
+  --npt-steps 100000 \
+  --production-steps 250000
+```
+
 ## 7. Analisi
 
 Objectiu:
@@ -112,6 +157,15 @@ Llançament:
 bash scripts/run_basic_analysis.sh
 ```
 
+Línies de codi:
+
+```bash
+python scripts/05_analyze_basic.py \
+  --topology study_runs/04_md/production_final.pdb \
+  --trajectory study_runs/04_md/production_production_trajectory.dcd \
+  --output-dir study_runs/05_analysis
+```
+
 Nota:
 
 - aquest pas requereix `mdtraj`
@@ -126,6 +180,16 @@ Executa els passos en aquest ordre:
 3. `bash scripts/run_prepare_variants.sh`
 4. `bash scripts/run_md_study.sh`
 5. `bash scripts/run_basic_analysis.sh`
+
+Versió completa en línia de comandes:
+
+```bash
+python scripts/01_clean_pdb.py --input-pdb inputs/trp_cage_1l2y_model1.pdb --output-dir study_runs/01_clean_pdb
+python scripts/02_add_protonation.py --input-pdb study_runs/01_clean_pdb/cleaned.pdb --output-dir study_runs/02_protonation --ph 7.0 --temperature 300.0
+python scripts/03_prepare_variants.py --input-pdb study_runs/02_protonation/protonated.pdb --output-dir study_runs/03_variants
+python scripts/04_run_md.py --input-pdb study_runs/03_variants/protein_only.pdb --output-dir study_runs/04_md --ph 7.0 --padding-nm 1.2 --ionic-strength 0.15 --temperature 300.0 --friction 1.0 --timestep-fs 2.0 --report-interval 500 --minimize-iterations 5000 --nvt-steps 25000 --npt-steps 100000 --production-steps 250000
+python scripts/05_analyze_basic.py --topology study_runs/04_md/production_final.pdb --trajectory study_runs/04_md/production_production_trajectory.dcd --output-dir study_runs/05_analysis
+```
 
 ## 9. Sortides
 
