@@ -1,6 +1,6 @@
 # Protocol Pas A Pas per a l'Estudi de la Dinàmica Molecular de la LEH
 
-Aquest document proposa un protocol pràctic per estudiar la dinàmica molecular de la LEH amb OpenMM. Està pensat com una guia de treball reproduïble, des de la preparació de l'estructura fins a l'anàlisi de trajectòries.
+Aquest document proposa un protocol pràctic per estudiar la dinàmica molecular de la LEH amb OpenMM.
 
 Assumpció de treball: `LEH` és l'enzim objecte d'estudi i disposem d'una estructura inicial experimental o modelada.
 
