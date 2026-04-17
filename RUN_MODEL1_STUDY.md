@@ -31,6 +31,7 @@ python scripts/01_clean_pdb.py \
   --input-pdb inputs/trp_cage_1l2y_model1.pdb \
   --output-dir study_runs/01_clean_pdb
 ```
+hola 
 
 Sortida esperada:
 
