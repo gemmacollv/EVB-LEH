@@ -23,14 +23,20 @@ Hi ha una guia pas a pas específica per a la proteïna petita d'exemple a:
 
 ## Scripts per passos
 
-També hi ha una versió separada del protocol en petits scripts:
+També hi ha una versió separada del protocol en petits scripts, seguint aquest esquema:
+
+1. netejar PDB
+2. afegir protonació i carregues
+3. preparar variants amb i sense lligands
+4. executar MD
+5. analitzar RMSD, RMSF i radi de gir
 
 ```bash
-bash scripts/run_01_prepare.sh
-bash scripts/run_02_minimize.sh
-bash scripts/run_03_nvt.sh
-bash scripts/run_04_npt.sh
-bash scripts/run_05_production.sh
+bash scripts/run_clean_pdb.sh
+bash scripts/run_add_protonation.sh
+bash scripts/run_prepare_variants.sh
+bash scripts/run_md_study.sh
+bash scripts/run_basic_analysis.sh
 ```
 
-L'entrada inicial està a [trp_cage_1l2y_model1.pdb](/Users/gemmacollvila/github/EVB-LEH/inputs/trp_cage_1l2y_model1.pdb) i cada pas escriu la seva sortida a `runs/`.
+L'entrada inicial està a [trp_cage_1l2y_model1.pdb](/Users/gemmacollvila/github/EVB-LEH/inputs/trp_cage_1l2y_model1.pdb) i cada pas escriu la seva sortida a `study_runs/`.

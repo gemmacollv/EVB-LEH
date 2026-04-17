@@ -20,124 +20,132 @@ El fitxer inicial del repositori és:
 
 - [trp_cage_1l2y_model1.pdb](/Users/gemmacollvila/github/EVB-LEH/inputs/trp_cage_1l2y_model1.pdb)
 
-## 2. Preparació del sistema
+## 2. Flux de treball
 
-En aquest projecte, la preparació fa:
+Per seguir un esquema més semblant a un estudi real, el flux recomanat és:
 
-- càrrega del PDB
+1. netejar PDB
+2. afegir estat de protonació i preparar carregues
+3. preparar una variant `prot + lligands` i una `nomes prot`
+4. executar la dinàmica molecular
+5. analitzar RMSD, RMSF i radi de gir
+
+## 3. Neteja del PDB
+
+Script:
+
+- [01_clean_pdb.py](/Users/gemmacollvila/github/EVB-LEH/scripts/01_clean_pdb.py)
+
+Llançament:
+
+```bash
+bash scripts/run_clean_pdb.sh
+```
+
+## 4. Estat de protonació i carregues
+
+En aquest pas es fa:
+
 - addició d'hidrògens a `pH 7.0`
-- solvatació en una caixa periòdica
-- aigua `TIP3P`
-- neutralització i força iònica per defecte
+- definició de l'estat de protonació
+- preparació del sistema perquè el force field assigni carregues parcials
 
 Script:
 
-- [01_prepare_system.py](/Users/gemmacollvila/github/EVB-LEH/scripts/01_prepare_system.py)
+- [02_add_protonation.py](/Users/gemmacollvila/github/EVB-LEH/scripts/02_add_protonation.py)
 
 Llançament:
 
 ```bash
-bash scripts/run_01_prepare.sh
+bash scripts/run_add_protonation.sh
 ```
 
-## 3. Minimització d'energia
+## 5. Variants: proteina + lligands i nomes proteina
+
+Script:
+
+- [03_prepare_variants.py](/Users/gemmacollvila/github/EVB-LEH/scripts/03_prepare_variants.py)
+
+Llançament:
+
+```bash
+bash scripts/run_prepare_variants.sh
+```
+
+En el Trp-cage `1L2Y` no hi ha lligands, així que les dues variants acaben sent equivalents.
+
+## 6. Dinàmica molecular
 
 Objectiu:
 
-- eliminar contactes estèrics
-- relaxar aigua i ions
-- obtenir una geometria inicial estable
+- solvatació
+- minimització
+- equilibratge NVT
+- equilibratge NPT
+- producció
 
 Script:
 
-- [02_minimize.py](/Users/gemmacollvila/github/EVB-LEH/scripts/02_minimize.py)
+- [04_run_md.py](/Users/gemmacollvila/github/EVB-LEH/scripts/04_run_md.py)
 
 Llançament:
 
 ```bash
-bash scripts/run_02_minimize.sh
+bash scripts/run_md_study.sh
 ```
 
-## 4. Equilibratge NVT
+## 7. Analisi
 
 Objectiu:
 
-- estabilitzar temperatura
-- començar relaxació dinàmica sense canvi de volum
+- RMSD
+- RMSF
+- radi de gir
 
 Script:
 
-- [03_equilibrate_nvt.py](/Users/gemmacollvila/github/EVB-LEH/scripts/03_equilibrate_nvt.py)
+- [05_analyze_basic.py](/Users/gemmacollvila/github/EVB-LEH/scripts/05_analyze_basic.py)
 
 Llançament:
 
 ```bash
-bash scripts/run_03_nvt.sh
+bash scripts/run_basic_analysis.sh
 ```
 
-## 5. Equilibratge NPT
+Nota:
 
-Objectiu:
+- aquest pas requereix `mdtraj`
+- en aquest entorn no està instal·lat actualment
 
-- estabilitzar densitat i volum
-- adaptar el solvent al sistema
-
-Script:
-
-- [04_equilibrate_npt.py](/Users/gemmacollvila/github/EVB-LEH/scripts/04_equilibrate_npt.py)
-
-Llançament:
-
-```bash
-bash scripts/run_04_npt.sh
-```
-
-## 6. Producció
-
-Objectiu:
-
-- generar una trajectòria útil per analitzar estabilitat i flexibilitat
-
-Script:
-
-- [05_production.py](/Users/gemmacollvila/github/EVB-LEH/scripts/05_production.py)
-
-Llançament:
-
-```bash
-bash scripts/run_05_production.sh
-```
-
-## 7. Ordre recomanat
+## 8. Ordre recomanat
 
 Executa els passos en aquest ordre:
 
-1. `bash scripts/run_01_prepare.sh`
-2. `bash scripts/run_02_minimize.sh`
-3. `bash scripts/run_03_nvt.sh`
-4. `bash scripts/run_04_npt.sh`
-5. `bash scripts/run_05_production.sh`
+1. `bash scripts/run_clean_pdb.sh`
+2. `bash scripts/run_add_protonation.sh`
+3. `bash scripts/run_prepare_variants.sh`
+4. `bash scripts/run_md_study.sh`
+5. `bash scripts/run_basic_analysis.sh`
 
-## 8. Sortides
+## 9. Sortides
 
-Cada etapa escriu els seus resultats dins `runs/`:
+Cada etapa escriu els seus resultats dins `study_runs/`:
 
 - PDBs intermedis
 - fitxers `csv` amb energies i temperatura
 - trajectòries `dcd`
 - resum curt de cada pas
 
-## 9. Què analitzar després
+## 10. Què analitzar després
 
 Per aquest sistema petit, les anàlisis més útils són:
 
 - RMSD global
 - RMSF per residu
-- estabilitat estructural
-- evolució de l'energia potencial
-- compactació de la proteïna
+- radi de gir
+- estabilitat estructural general
 
-## 10. Utilitat del sistema
+## 11. Utilitat del sistema
 
 El Trp-cage és especialment útil perquè:
 
