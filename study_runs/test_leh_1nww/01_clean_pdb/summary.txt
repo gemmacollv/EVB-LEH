@@ -1,4 +1,0 @@
-Input PDB: inputs/leh_1nww.pdb
-Output PDB: study_runs/test_leh_1nww/01_clean_pdb/cleaned.pdb
-Atoms totals: 2683
-Accio: normalitzacio del PDB d'entrada.
