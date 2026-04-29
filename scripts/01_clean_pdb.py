@@ -9,6 +9,12 @@ from openmm.app import PDBFile
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Pas 1: netejar i normalitzar el PDB.")
     parser.add_argument(
+        "--study-dir",
+        type=Path,
+        default=Path("study_runs"),
+        help="Directori base de l'estudi.",
+    )
+    parser.add_argument(
         "--input-pdb",
         type=Path,
         default=Path("inputs/trp_cage_1l2y_model1.pdb"),
@@ -17,13 +23,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("study_runs/01_clean_pdb"),
+        default=None,
+        help="Directori de sortida. Per defecte: STUDY_DIR/01_clean_pdb.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.output_dir is None:
+        args.output_dir = args.study_dir / "01_clean_pdb"
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     pdb = PDBFile(str(args.input_pdb))

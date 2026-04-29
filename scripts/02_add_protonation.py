@@ -13,14 +13,22 @@ def parse_args() -> argparse.Namespace:
         description="Pas 2: afegir estat de protonacio i preparar carregues via force field."
     )
     parser.add_argument(
+        "--study-dir",
+        type=Path,
+        default=Path("study_runs"),
+        help="Directori base de l'estudi.",
+    )
+    parser.add_argument(
         "--input-pdb",
         type=Path,
-        default=Path("study_runs/01_clean_pdb/cleaned.pdb"),
+        default=None,
+        help="PDB netejat. Per defecte: STUDY_DIR/01_clean_pdb/cleaned.pdb.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("study_runs/02_protonation"),
+        default=None,
+        help="Directori de sortida. Per defecte: STUDY_DIR/02_protonation.",
     )
     parser.add_argument("--ph", type=float, default=7.0)
     parser.add_argument("--temperature", type=float, default=300.0)
@@ -29,6 +37,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.input_pdb is None:
+        args.input_pdb = args.study_dir / "01_clean_pdb" / "cleaned.pdb"
+    if args.output_dir is None:
+        args.output_dir = args.study_dir / "02_protonation"
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     modeller = load_modeller(args.input_pdb)

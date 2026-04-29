@@ -12,14 +12,22 @@ from md_common import attach_reporters, build_simulation, build_system, prepare_
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Pas 4: executar la dinamica molecular.")
     parser.add_argument(
+        "--study-dir",
+        type=Path,
+        default=Path("study_runs"),
+        help="Directori base de l'estudi.",
+    )
+    parser.add_argument(
         "--input-pdb",
         type=Path,
-        default=Path("study_runs/03_variants/protein_only.pdb"),
+        default=None,
+        help="PDB d'entrada per a MD. Per defecte: STUDY_DIR/03_variants/protein_only.pdb.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("study_runs/04_md"),
+        default=None,
+        help="Directori de sortida. Per defecte: STUDY_DIR/04_md.",
     )
     parser.add_argument("--ph", type=float, default=7.0)
     parser.add_argument("--padding-nm", type=float, default=1.2)
@@ -37,6 +45,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.input_pdb is None:
+        args.input_pdb = args.study_dir / "03_variants" / "protein_only.pdb"
+    if args.output_dir is None:
+        args.output_dir = args.study_dir / "04_md"
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     modeller = prepare_modeller(

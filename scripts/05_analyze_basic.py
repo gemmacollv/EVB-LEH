@@ -10,19 +10,28 @@ def parse_args() -> argparse.Namespace:
         description="Pas 5: analisi basica de RMSD, RMSF i radi de gir."
     )
     parser.add_argument(
+        "--study-dir",
+        type=Path,
+        default=Path("study_runs"),
+        help="Directori base de l'estudi.",
+    )
+    parser.add_argument(
         "--topology",
         type=Path,
-        default=Path("study_runs/04_md/production_final.pdb"),
+        default=None,
+        help="Topologia/PDB final. Per defecte: STUDY_DIR/04_md/production_final.pdb.",
     )
     parser.add_argument(
         "--trajectory",
         type=Path,
-        default=Path("study_runs/04_md/production_production_trajectory.dcd"),
+        default=None,
+        help="Trajectoria DCD. Per defecte: STUDY_DIR/04_md/production_trajectory.dcd.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("study_runs/05_analysis"),
+        default=None,
+        help="Directori de sortida. Per defecte: STUDY_DIR/05_analysis.",
     )
     return parser.parse_args()
 
@@ -45,6 +54,12 @@ def write_residue_csv(path: Path, residues, values) -> None:
 
 def main() -> None:
     args = parse_args()
+    if args.topology is None:
+        args.topology = args.study_dir / "04_md" / "production_final.pdb"
+    if args.trajectory is None:
+        args.trajectory = args.study_dir / "04_md" / "production_trajectory.dcd"
+    if args.output_dir is None:
+        args.output_dir = args.study_dir / "05_analysis"
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     try:

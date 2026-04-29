@@ -10,15 +10,13 @@ No incrusta cap PDB dins del codi.
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import parmed as pmd
+from openmm import unit
 from openmm.app import ForceField, HBonds, NoCutoff, PDBFile, PME
 
-
-# Fitxer d'entrada i directori de sortida
-INPUT_PDB = Path("study_runs/02_protonation/protonated.pdb")
-OUTPUT_DIR = Path("study_runs/amber_from_pdb")
 
 # Force field AMBER
 PROTEIN_FORCEFIELD = "amber14-all.xml"
@@ -29,10 +27,40 @@ NONBONDED_CUTOFF_NM = 1.0
 USE_CONSTRAINTS = True
 
 
-def main() -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Genera fitxers AMBER a partir d'un PDB extern."
+    )
+    parser.add_argument(
+        "--study-dir",
+        type=Path,
+        default=Path("study_runs"),
+        help="Directori base de l'estudi.",
+    )
+    parser.add_argument(
+        "--input-pdb",
+        type=Path,
+        default=None,
+        help="PDB d'entrada. Per defecte: STUDY_DIR/02_protonation/protonated.pdb.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Directori de sortida. Per defecte: STUDY_DIR/amber_from_pdb.",
+    )
+    return parser.parse_args()
 
-    pdb = PDBFile(str(INPUT_PDB))
+
+def main() -> None:
+    args = parse_args()
+    if args.input_pdb is None:
+        args.input_pdb = args.study_dir / "02_protonation" / "protonated.pdb"
+    if args.output_dir is None:
+        args.output_dir = args.study_dir / "amber_from_pdb"
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    pdb = PDBFile(str(args.input_pdb))
     forcefield = ForceField(PROTEIN_FORCEFIELD, WATER_FORCEFIELD)
 
     has_periodic_box = pdb.topology.getPeriodicBoxVectors() is not None
@@ -43,15 +71,15 @@ def main() -> None:
         "rigidWater": USE_CONSTRAINTS,
     }
     if has_periodic_box:
-        create_system_kwargs["nonbondedCutoff"] = NONBONDED_CUTOFF_NM
+        create_system_kwargs["nonbondedCutoff"] = NONBONDED_CUTOFF_NM * unit.nanometer
 
     system = forcefield.createSystem(**create_system_kwargs)
 
     structure = pmd.openmm.load_topology(pdb.topology, system, xyz=pdb.positions)
 
-    prmtop_path = OUTPUT_DIR / f"{INPUT_PDB.stem}.prmtop"
-    inpcrd_path = OUTPUT_DIR / f"{INPUT_PDB.stem}.inpcrd"
-    summary_path = OUTPUT_DIR / "summary.txt"
+    prmtop_path = args.output_dir / f"{args.input_pdb.stem}.prmtop"
+    inpcrd_path = args.output_dir / f"{args.input_pdb.stem}.inpcrd"
+    summary_path = args.output_dir / "summary.txt"
 
     structure.save(str(prmtop_path), overwrite=True)
     structure.save(str(inpcrd_path), overwrite=True)
@@ -59,7 +87,7 @@ def main() -> None:
     summary_path.write_text(
         "\n".join(
             [
-                f"Input PDB: {INPUT_PDB}",
+                f"Input PDB: {args.input_pdb}",
                 f"PRMTOP: {prmtop_path}",
                 f"INPCRD: {inpcrd_path}",
                 f"Protein force field: {PROTEIN_FORCEFIELD}",
@@ -74,7 +102,7 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    print(f"PDB d'entrada: {INPUT_PDB}")
+    print(f"PDB d'entrada: {args.input_pdb}")
     print(f"Fitxer AMBER topology: {prmtop_path}")
     print(f"Fitxer AMBER coordinates: {inpcrd_path}")
 

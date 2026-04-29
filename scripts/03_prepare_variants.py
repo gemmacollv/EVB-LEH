@@ -37,14 +37,22 @@ def parse_args() -> argparse.Namespace:
         description="Pas 3: preparar una variant nomes proteina i una proteina + lligands."
     )
     parser.add_argument(
+        "--study-dir",
+        type=Path,
+        default=Path("study_runs"),
+        help="Directori base de l'estudi.",
+    )
+    parser.add_argument(
         "--input-pdb",
         type=Path,
-        default=Path("study_runs/02_protonation/protonated.pdb"),
+        default=None,
+        help="PDB protonat. Per defecte: STUDY_DIR/02_protonation/protonated.pdb.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("study_runs/03_variants"),
+        default=None,
+        help="Directori de sortida. Per defecte: STUDY_DIR/03_variants.",
     )
     return parser.parse_args()
 
@@ -59,6 +67,10 @@ def detect_ligands(topology) -> list[str]:
 
 def main() -> None:
     args = parse_args()
+    if args.input_pdb is None:
+        args.input_pdb = args.study_dir / "02_protonation" / "protonated.pdb"
+    if args.output_dir is None:
+        args.output_dir = args.study_dir / "03_variants"
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     pdb = PDBFile(str(args.input_pdb))
@@ -81,9 +93,7 @@ def main() -> None:
         )
     else:
         lines.append("Lligands detectats: cap")
-        lines.append(
-            "En el Trp-cage 1L2Y les dues variants coincideixen perque no hi ha lligands."
-        )
+        lines.append("Les dues variants coincideixen perque no s'han detectat lligands.")
 
     (args.output_dir / "summary.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Variants desades a {args.output_dir}")

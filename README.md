@@ -39,12 +39,16 @@ També hi ha una versió separada del protocol en petits scripts, seguint aquest
 5. analitzar RMSD, RMSF i radi de gir
 
 ```bash
-bash scripts/run_clean_pdb.sh --input-pdb inputs/el_teu_fitxer.pdb
-bash scripts/run_add_protonation.sh
-bash scripts/run_prepare_variants.sh
-bash scripts/run_md_study.sh
-bash scripts/run_basic_analysis.sh
+STUDY_DIR=study_runs/el_teu_sistema
+
+bash scripts/run_clean_pdb.sh --input-pdb inputs/el_teu_fitxer.pdb --study-dir "$STUDY_DIR"
+bash scripts/run_add_protonation.sh --study-dir "$STUDY_DIR"
+bash scripts/run_prepare_variants.sh --study-dir "$STUDY_DIR"
+bash scripts/run_md_study.sh --study-dir "$STUDY_DIR"
+bash scripts/run_basic_analysis.sh --study-dir "$STUDY_DIR"
 ```
 
 Si no passes cap `--input-pdb`, el projecte continua utilitzant el Trp-cage
-d'exemple. Cada pas escriu la seva sortida a `study_runs/`.
+d'exemple. Si no passes cap `--study-dir`, cada pas escriu la seva sortida a
+`study_runs/`. Per tenir resultats separats per cada PDB, usa un `--study-dir`
+diferent per sistema.
