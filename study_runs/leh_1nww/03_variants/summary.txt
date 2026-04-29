@@ -1,0 +1,6 @@
+Input PDB: study_runs/leh_1nww/02_protonation/protonated.pdb
+Protein only: study_runs/leh_1nww/03_variants/protein_only.pdb
+Protein + ligands: study_runs/leh_1nww/03_variants/protein_plus_ligands.pdb
+Atoms protein_only: 4492
+Residus no proteics detectats: cap
+Les dues variants coincideixen perque no s'han detectat lligands.

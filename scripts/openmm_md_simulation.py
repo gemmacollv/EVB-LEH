@@ -31,13 +31,13 @@ def parse_args() -> argparse.Namespace:
         "--prmtop",
         type=Path,
         default=None,
-        help="Fitxer PRMTOP. Per defecte: STUDY_DIR/amber_from_pdb/protonated.prmtop.",
+        help="Fitxer PRMTOP. Per defecte: STUDY_DIR/amber_from_pdb/system.prmtop.",
     )
     parser.add_argument(
         "--inpcrd",
         type=Path,
         default=None,
-        help="Fitxer INPCRD. Per defecte: STUDY_DIR/amber_from_pdb/protonated.inpcrd.",
+        help="Fitxer INPCRD. Per defecte: STUDY_DIR/amber_from_pdb/system.inpcrd.",
     )
     parser.add_argument(
         "--output-dir",
@@ -56,11 +56,14 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     if args.prmtop is None:
-        args.prmtop = args.study_dir / "amber_from_pdb" / "protonated.prmtop"
+        args.prmtop = args.study_dir / "amber_from_pdb" / "system.prmtop"
     if args.inpcrd is None:
-        args.inpcrd = args.study_dir / "amber_from_pdb" / "protonated.inpcrd"
+        args.inpcrd = args.study_dir / "amber_from_pdb" / "system.inpcrd"
     if args.output_dir is None:
         args.output_dir = args.study_dir / "amber_simulation"
+    args.prmtop = args.prmtop.resolve()
+    args.inpcrd = args.inpcrd.resolve()
+    args.output_dir = args.output_dir.resolve()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     prmtop = AmberPrmtopFile(str(args.prmtop))

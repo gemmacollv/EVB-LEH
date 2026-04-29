@@ -22,6 +22,8 @@ from openmm.app import (
     StateDataReporter,
 )
 
+from md_common import nonprotein_residues, protein_residue_label
+
 
 DEFAULT_INPUT_PDB = Path("inputs/trp_cage_1l2y_model1.pdb")
 
@@ -66,6 +68,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ph", type=float, default=7.0, help="pH per afegir hidrogens.")
     parser.add_argument("--report-interval", type=int, default=500, help="Interval de report.")
     parser.add_argument(
+        "--keep-nonprotein",
+        action="store_true",
+        help="Conserva HETATM/aigues/lligands. Per defecte es deixa nomes la proteina.",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("outputs"),
@@ -82,9 +89,27 @@ def build_simulation(
     padding_nm: float,
     ionic_strength_molar: float,
     ph: float,
+    keep_nonprotein: bool,
 ) -> tuple[Simulation, Modeller]:
     pdb = PDBFile(str(input_pdb))
     modeller = Modeller(pdb.topology, pdb.positions)
+    removed = []
+    if not keep_nonprotein:
+        removed = nonprotein_residues(modeller.topology)
+        modeller.delete(removed)
+
+    if modeller.topology.getNumAtoms() == 0:
+        raise SystemExit(
+            "No queden atoms de proteina per simular. Revisa el PDB o usa --keep-nonprotein."
+        )
+
+    if removed:
+        removed_names = sorted({residue.name for residue in removed})
+        examples = ", ".join(protein_residue_label(residue) for residue in removed[:10])
+        print(
+            "Residus no proteics eliminats abans de la MD: "
+            f"{', '.join(removed_names)}. Exemples: {examples}"
+        )
 
     forcefield = ForceField("amber14-all.xml", "amber14/tip3p.xml")
     modeller.addHydrogens(forcefield, pH=ph)
@@ -126,6 +151,7 @@ def main() -> None:
         padding_nm=args.padding_nm,
         ionic_strength_molar=args.ionic_strength,
         ph=args.ph,
+        keep_nonprotein=args.keep_nonprotein,
     )
 
     simulation.context.setPositions(modeller.positions)

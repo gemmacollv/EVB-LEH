@@ -1,0 +1,14 @@
+Input PDB: /Users/gemmacollvila/github/EVB-LEH/study_runs/leh_1nww_fixed_test/03_variants/protein_only.pdb
+PRMTOP: /Users/gemmacollvila/github/EVB-LEH/study_runs/leh_1nww_fixed_test/amber_from_pdb/system.prmtop
+INPCRD: /Users/gemmacollvila/github/EVB-LEH/study_runs/leh_1nww_fixed_test/amber_from_pdb/system.inpcrd
+Solvated PDB: /Users/gemmacollvila/github/EVB-LEH/study_runs/leh_1nww_fixed_test/amber_from_pdb/system_solvated.pdb
+Protein force field: amber14-all.xml
+Water force field: amber14/tip3p.xml
+Nonbonded method: PME
+Constraints: None during AMBER export; simulation can apply HBonds.
+pH: 7.0
+Padding (nm): 0.5
+Ionic strength (M): 0.15
+Temperature (K): 300.0
+Atoms totals: 19772
+Box vectors (nm): [Vec3(x=6.175470741709448, y=0, z=0), Vec3(x=0, y=6.175470741709448, z=0), Vec3(x=0, y=0, z=6.175470741709448)]

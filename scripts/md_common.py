@@ -19,6 +19,42 @@ from openmm.app import (
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_INPUT_PDB = ROOT / "inputs" / "trp_cage_1l2y_model1.pdb"
 
+PROTEIN_RESIDUES = {
+    "ALA",
+    "ARG",
+    "ASN",
+    "ASP",
+    "CYS",
+    "GLN",
+    "GLU",
+    "GLY",
+    "HIS",
+    "ILE",
+    "LEU",
+    "LYS",
+    "MET",
+    "PHE",
+    "PRO",
+    "SER",
+    "THR",
+    "TRP",
+    "TYR",
+    "VAL",
+}
+
+
+def protein_residue_label(residue) -> str:
+    chain_id = residue.chain.id or "?"
+    return f"{residue.name}:{chain_id}:{residue.id}"
+
+
+def nonprotein_residues(topology) -> list:
+    return [
+        residue
+        for residue in topology.residues()
+        if residue.name not in PROTEIN_RESIDUES
+    ]
+
 
 def add_standard_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument("--temperature", type=float, default=300.0)

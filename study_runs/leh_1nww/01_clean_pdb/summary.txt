@@ -1,0 +1,7 @@
+Input PDB: inputs/leh_1nww.pdb
+Output PDB: study_runs/leh_1nww/01_clean_pdb/cleaned.pdb
+Atoms entrada: 2683
+Atoms sortida: 2275
+Residus no proteics eliminats: HOH=378, HPN=2, MES=1
+Exemples eliminats: HPN:A:900, MES:A:901, HPN:B:1900, HOH:A:200, HOH:A:201, HOH:A:202, HOH:A:204, HOH:A:205, HOH:A:206, HOH:A:207, HOH:A:208, HOH:A:209, HOH:A:210, HOH:A:211, HOH:A:212, HOH:A:213, HOH:A:214, HOH:A:215, HOH:A:216, HOH:A:217
+Accio: normalitzacio del PDB i filtratge a proteina estandard.

@@ -1,35 +1,12 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from pathlib import Path
 
-from openmm.app import PDBFile
+from openmm.app import Modeller, PDBFile
 
-from md_common import write_pdb
-
-
-PROTEIN_RESIDUES = {
-    "ALA",
-    "ARG",
-    "ASN",
-    "ASP",
-    "CYS",
-    "GLN",
-    "GLU",
-    "GLY",
-    "HIS",
-    "ILE",
-    "LEU",
-    "LYS",
-    "MET",
-    "PHE",
-    "PRO",
-    "SER",
-    "THR",
-    "TRP",
-    "TYR",
-    "VAL",
-}
+from md_common import nonprotein_residues, protein_residue_label, write_pdb
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,11 +35,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def detect_ligands(topology) -> list[str]:
-    ligands = []
-    for residue in topology.residues():
-        if residue.name not in PROTEIN_RESIDUES:
-            ligands.append(f"{residue.name}:{residue.id}")
-    return ligands
+    return [protein_residue_label(residue) for residue in nonprotein_residues(topology)]
 
 
 def main() -> None:
@@ -74,25 +47,41 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     pdb = PDBFile(str(args.input_pdb))
+    modeller = Modeller(pdb.topology, pdb.positions)
     ligands = detect_ligands(pdb.topology)
 
     protein_only = args.output_dir / "protein_only.pdb"
     protein_plus_ligands = args.output_dir / "protein_plus_ligands.pdb"
-    write_pdb(pdb.topology, pdb.positions, protein_only)
+    modeller.delete(nonprotein_residues(modeller.topology))
+    if modeller.topology.getNumAtoms() == 0:
+        raise SystemExit(
+            "No s'ha pogut crear la variant protein_only: no hi ha atoms de proteina."
+        )
+    write_pdb(modeller.topology, modeller.positions, protein_only)
     write_pdb(pdb.topology, pdb.positions, protein_plus_ligands)
+
+    ligand_counts = Counter(label.split(":", maxsplit=1)[0] for label in ligands)
+    ligand_summary = (
+        ", ".join(f"{name}={count}" for name, count in sorted(ligand_counts.items()))
+        if ligand_counts
+        else "cap"
+    )
 
     lines = [
         f"Input PDB: {args.input_pdb}",
         f"Protein only: {protein_only}",
         f"Protein + ligands: {protein_plus_ligands}",
+        f"Atoms protein_only: {modeller.topology.getNumAtoms()}",
     ]
     if ligands:
-        lines.append("Lligands detectats: " + ", ".join(ligands))
+        lines.append("Residus no proteics detectats: " + ligand_summary)
+        lines.append("Exemples: " + ", ".join(ligands[:20]))
         lines.append(
-            "Nota: per aquest exemple no s'ha fet una separacio estructural real; caldria un cas amb lligands reals."
+            "Nota: la MD per defecte usa protein_only; "
+            "protein_plus_ligands requereix parametres dels lligands."
         )
     else:
-        lines.append("Lligands detectats: cap")
+        lines.append("Residus no proteics detectats: cap")
         lines.append("Les dues variants coincideixen perque no s'han detectat lligands.")
 
     (args.output_dir / "summary.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
