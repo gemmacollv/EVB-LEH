@@ -12,6 +12,7 @@ def parse_args() -> argparse.Namespace:
         "--input-pdb",
         type=Path,
         default=Path("inputs/trp_cage_1l2y_model1.pdb"),
+        help="Fitxer PDB d'entrada. Es pot passar qualsevol .pdb.",
     )
     parser.add_argument(
         "--output-dir",

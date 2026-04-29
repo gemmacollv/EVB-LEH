@@ -7,12 +7,19 @@ Exemple mínim de dinàmica molecular amb OpenMM sobre una proteïna real petita
 Instal·la OpenMM i executa:
 
 ```bash
-python openmm_md.py --steps 5000 --output-dir outputs
+python scripts/openmm_md.py --input-pdb inputs/trp_cage_1l2y_model1.pdb --steps 5000 --output-dir outputs
 ```
 
-El script carrega el Trp-cage miniprotein (`1L2Y`, model 1), afegeix hidrògens,
-solvata el sistema amb aigua TIP3P, minimitza l'energia i executa una simulació
-curta de dinàmica molecular. Els fitxers de sortida es guardaran a `outputs/`.
+Per executar la simulació amb un altre PDB, només cal canviar `--input-pdb`:
+
+```bash
+python scripts/openmm_md.py --input-pdb inputs/el_teu_fitxer.pdb --steps 5000 --output-dir outputs/el_teu_sistema
+```
+
+El script carrega el PDB indicat, afegeix hidrògens, solvata el sistema amb
+aigua TIP3P, minimitza l'energia i executa una simulació curta de dinàmica
+molecular. Els fitxers de sortida es guardaran al directori indicat amb
+`--output-dir`.
 
 ## Protocol Trp-cage
 
@@ -32,11 +39,12 @@ També hi ha una versió separada del protocol en petits scripts, seguint aquest
 5. analitzar RMSD, RMSF i radi de gir
 
 ```bash
-bash scripts/run_clean_pdb.sh
+bash scripts/run_clean_pdb.sh --input-pdb inputs/el_teu_fitxer.pdb
 bash scripts/run_add_protonation.sh
 bash scripts/run_prepare_variants.sh
 bash scripts/run_md_study.sh
 bash scripts/run_basic_analysis.sh
 ```
 
-L'entrada inicial està a [trp_cage_1l2y_model1.pdb](/Users/gemmacollvila/github/EVB-LEH/inputs/trp_cage_1l2y_model1.pdb) i cada pas escriu la seva sortida a `study_runs/`.
+Si no passes cap `--input-pdb`, el projecte continua utilitzant el Trp-cage
+d'exemple. Cada pas escriu la seva sortida a `study_runs/`.

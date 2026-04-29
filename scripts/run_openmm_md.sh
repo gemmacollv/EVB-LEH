@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python openmm_md.py \
+python scripts/openmm_md.py \
   --steps 5000 \
   --equilibration-steps 1000 \
   --temperature 300.0 \
