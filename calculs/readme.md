@@ -41,8 +41,6 @@ bash scripts/run_md_study.sh --study-dir "$STUDY_DIR"
 # 5. analitzar RMSD, RMSF i radi de gir
 ```bash
 bash scripts/run_basic_analysis.sh --study-dir "$STUDY_DIR"```
-
-
-
+```
 
 
