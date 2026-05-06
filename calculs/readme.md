@@ -20,27 +20,27 @@ HPN = lligand/inhibidor o molècula no estàndard
 
 
 ```bash
-python calculs/run_clean_pdb.sh --input-pdb inputs/leh_1nww.pdb --study-dir "$STUDY_DIR"
+python calculs/run_clean_pdb.sh --input-pdb inputs/leh_1nww.pdb"
 ```
 
 # 2. Adició de protons (protonació)
 ```bash
-bash scripts/run_add_protonation.sh --study-dir "$STUDY_DIR"
+bash scripts/run_add_protonation.sh"
 ```
 
 # 3. Preparar prtoeïna amb i sense lligands
 ```bash
-bash scripts/run_prepare_variants.sh --study-dir "$STUDY_DIR"
+bash scripts/run_prepare_variants.sh"
 ```
 
 # 4. Executar Molecular Dynamics (MD)
 ```bash
-bash scripts/run_md_study.sh --study-dir "$STUDY_DIR"
+bash scripts/run_md_study.sh"
 ```
 
 # 5. analitzar RMSD, RMSF i radi de gir
 ```bash
-bash scripts/run_basic_analysis.sh --study-dir "$STUDY_DIR"```
+bash scripts/run_basic_analysis.sh"
 ```
 
 

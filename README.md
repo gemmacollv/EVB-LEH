@@ -16,9 +16,7 @@ Per executar la simulació amb un altre PDB, només cal canviar `--input-pdb`:
 python scripts/openmm_md.py --input-pdb inputs/el_teu_fitxer.pdb --steps 5000 --output-dir outputs/el_teu_sistema
 ```
 
-El script carrega el PDB indicat, afegeix hidrògens, solvata el sistema amb
-aigua TIP3P, minimitza l'energia i executa una simulació curta de dinàmica
-molecular. Els fitxers de sortida es guardaran al directori indicat amb
+El script carrega el PDB indicat, afegeix hidrògens, solvata el sistema amb aigua TIP3P, minimitza l'energia i executa una simulació curta de dinàmica molecular. Els fitxers de sortida es guardaran al directori indicat amb
 `--output-dir`.
 
 ## Protocol Trp-cage
