@@ -50,3 +50,11 @@ Si no passes cap `--input-pdb`, el projecte continua utilitzant el Trp-cage
 d'exemple. Si no passes cap `--study-dir`, cada pas escriu la seva sortida a
 `study_runs/`. Per tenir resultats separats per cada PDB, usa un `--study-dir`
 diferent per sistema.
+
+També pots executar tot el flux recomanat d'una sola vegada:
+
+```bash
+bash scripts/run_study_pipeline.sh \
+  --input-pdb inputs/el_teu_fitxer.pdb \
+  --study-dir "$STUDY_DIR"
+```

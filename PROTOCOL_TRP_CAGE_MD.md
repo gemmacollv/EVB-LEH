@@ -162,7 +162,7 @@ Línies de codi:
 ```bash
 python scripts/05_analyze_basic.py \
   --topology study_runs/04_md/production_final.pdb \
-  --trajectory study_runs/04_md/production_production_trajectory.dcd \
+  --trajectory study_runs/04_md/production_trajectory.dcd \
   --output-dir study_runs/05_analysis
 ```
 
@@ -188,7 +188,15 @@ python scripts/01_clean_pdb.py --input-pdb inputs/trp_cage_1l2y_model1.pdb --out
 python scripts/02_add_protonation.py --input-pdb study_runs/01_clean_pdb/cleaned.pdb --output-dir study_runs/02_protonation --ph 7.0 --temperature 300.0
 python scripts/03_prepare_variants.py --input-pdb study_runs/02_protonation/protonated.pdb --output-dir study_runs/03_variants
 python scripts/04_run_md.py --input-pdb study_runs/03_variants/protein_only.pdb --output-dir study_runs/04_md --ph 7.0 --padding-nm 1.2 --ionic-strength 0.15 --temperature 300.0 --friction 1.0 --timestep-fs 2.0 --report-interval 500 --minimize-iterations 5000 --nvt-steps 25000 --npt-steps 100000 --production-steps 250000
-python scripts/05_analyze_basic.py --topology study_runs/04_md/production_final.pdb --trajectory study_runs/04_md/production_production_trajectory.dcd --output-dir study_runs/05_analysis
+python scripts/05_analyze_basic.py --topology study_runs/04_md/production_final.pdb --trajectory study_runs/04_md/production_trajectory.dcd --output-dir study_runs/05_analysis
+```
+
+O be, tot el flux en un sol comandament:
+
+```bash
+bash scripts/run_study_pipeline.sh \
+  --input-pdb inputs/trp_cage_1l2y_model1.pdb \
+  --study-dir study_runs
 ```
 
 ## 9. Sortides
