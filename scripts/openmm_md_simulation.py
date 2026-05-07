@@ -16,7 +16,6 @@ from openmm.app import (
     StateDataReporter,
 )
 
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Executa una simulacio OpenMM a partir de fitxers AMBER."
