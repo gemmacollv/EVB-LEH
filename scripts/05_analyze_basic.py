@@ -4,7 +4,6 @@ import argparse
 import csv
 from pathlib import Path
 
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Pas 5: analisi basica de RMSD, RMSF i radi de gir."
