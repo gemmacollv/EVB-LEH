@@ -1,0 +1,8 @@
+Input PDB: study_runs/01_clean_pdb/cleaned.pdb
+Output PDB: study_runs/02_protonation/protonated.pdb
+pH: 7.0
+Force field: amber14-all.xml + amber14/tip3p.xml
+Atoms totals: 304
+Residus no proteics eliminats: cap
+Exemples eliminats: cap
+Nota: les carregues parcials s'assignen en crear el sistema amb el force field.
