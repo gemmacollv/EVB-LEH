@@ -29,10 +29,10 @@ barostatInterval = 25
 
 # Simulation Options
 
-steps = 1000000
-equilibrationSteps = 1000
-dcdReporter = DCDReporter('trajectory.dcd', 10000)
-dataReporter = StateDataReporter('log.txt', 1000, totalSteps=steps,
+steps = 2000
+equilibrationSteps = 100
+dcdReporter = DCDReporter('trajectory.dcd', 50)
+dataReporter = StateDataReporter('log.txt', 50, totalSteps=steps,
     step=True, speed=True, progress=True, potentialEnergy=True, temperature=True, separator='\t')
 checkpointReporter = CheckpointReporter('checkpoint.chk', 10000)
 
