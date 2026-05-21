@@ -1,0 +1,2 @@
+#"Step"	"Potential Energy (kJ/mole)"	"Temperature (K)"
+10000	-399780.87964361766	299.90681003725723
