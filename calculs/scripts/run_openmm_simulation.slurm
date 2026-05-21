@@ -10,4 +10,4 @@
 conda init
 conda activate md-openmm
 
-python run_openmm_simulations.py
+python openmm_md_simulation-apo.py

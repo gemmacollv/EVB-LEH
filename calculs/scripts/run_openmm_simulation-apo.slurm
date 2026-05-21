@@ -8,5 +8,4 @@
 #SBATCH --time=4:00:00
 
 conda activate md-openmm
-cd /home/10034103@uvic.local/EVB-LEH/calculs/scripts
-python openmm_md_simulation-apo
+python openmm_md_simulation-apo.py
