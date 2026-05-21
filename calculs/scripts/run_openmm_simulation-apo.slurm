@@ -4,7 +4,8 @@
 #SBATCH --output=%j.out.txt
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-##SBATCH --partition=normal2
+#SBATCH --partition=gpu
+#SBATCH --time=4:00:00
 
 conda init
 conda activate md-openmm

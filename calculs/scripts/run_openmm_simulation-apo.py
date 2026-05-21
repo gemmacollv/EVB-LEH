@@ -6,7 +6,7 @@ from openmm.unit import *
 
 # Input Files
 
-pdb = PDBFile('/home/10034103@uvic.local/EVB-LEH/calculs/study_runs/03_variants/protein_only.pdb')
+pdb = PDBFile('/home/10034103@uvic.local/EVB-LEH/calculs/study_runs/solvated_pdb/protein_only_solvated.pdb')
 forcefield = ForceField('amber19-all.xml', 'amber19/tip3pfb.xml')
 
 # System Configuration

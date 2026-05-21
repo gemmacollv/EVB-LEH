@@ -4,9 +4,9 @@
 #SBATCH --output=%j.out.txt
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-##SBATCH --partition=normal2
+#SBATCH --partition=gpu
+#SBATCH --time=4:00:00
 
-source /home/10034103/miniforge3/etc/profile.d/conda.sh
 conda init
 conda activate md-openmm
 
