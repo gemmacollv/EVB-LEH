@@ -3,10 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 .DS_Store
-/outputs
+
 *err.txt
 *out.txt
-*out
+*.out
 *.err
 
 # C extensions
