@@ -8,5 +8,4 @@
 #SBATCH --time=4:00:00
 
 conda activate md-openmm
-
 python openmm_md_simulation-ligand.py
