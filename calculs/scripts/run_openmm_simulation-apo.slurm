@@ -7,6 +7,6 @@
 #SBATCH --partition=gpu
 #SBATCH --time=4:00:00
 
-conda init
 conda activate md-openmm
-python run_openmm_simulation-apo.py
+cd /home/10034103@uvic.local/EVB-LEH/calculs/scripts
+python openmm_md_simulation-apo

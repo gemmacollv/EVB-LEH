@@ -7,6 +7,7 @@ from openmm import LangevinMiddleIntegrator, unit
 from openmm.app import (
     AmberInpcrdFile,
     AmberPrmtopFile,
+    CheckpointReporter,
     DCDReporter,
     HBonds,
     NoCutoff,
@@ -16,6 +17,12 @@ from openmm.app import (
     StateDataReporter,
 )
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_STUDY_DIR = SCRIPT_DIR.parent / "study_runs"
+DEFAULT_PRMTOP = DEFAULT_STUDY_DIR / "solvated_pdb" / "protein_only.prmtop"
+DEFAULT_INPCRD = DEFAULT_STUDY_DIR / "solvated_pdb" / "protein_only.inpcrd"
+DEFAULT_OUTPUT_DIR = DEFAULT_STUDY_DIR / "amber_simulation_apo"
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Executa una simulacio OpenMM a partir de fitxers AMBER."
@@ -23,26 +30,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--study-dir",
         type=Path,
-        default=Path("study_runs"),
-        help="Directori base de l'estudi.",
+        default=DEFAULT_STUDY_DIR,
+        help=f"Directori base de l'estudi. Per defecte: {DEFAULT_STUDY_DIR}.",
     )
     parser.add_argument(
         "--prmtop",
         type=Path,
         default=None,
-        help="Fitxer PRMTOP. Per defecte: STUDY_DIR/solvated_pdb/system.prmtop.",
+        help=f"Fitxer PRMTOP. Per defecte: {DEFAULT_PRMTOP}.",
     )
     parser.add_argument(
         "--inpcrd",
         type=Path,
         default=None,
-        help="Fitxer INPCRD. Per defecte: STUDY_DIR/solvated_pdb/system.inpcrd.",
+        help=f"Fitxer INPCRD. Per defecte: {DEFAULT_INPCRD}.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
-        help="Directori de sortida. Per defecte: STUDY_DIR/amber_simulation.",
+        help=f"Directori de sortida. Per defecte: {DEFAULT_OUTPUT_DIR}.",
     )
     parser.add_argument("--steps", type=int, default=5000)
     parser.add_argument("--temperature", type=float, default=300.0)
@@ -55,11 +62,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     if args.prmtop is None:
-        args.prmtop = args.study_dir / "amber_from_pdb" / "system.prmtop"
+        args.prmtop = DEFAULT_PRMTOP
     if args.inpcrd is None:
-        args.inpcrd = args.study_dir / "amber_from_pdb" / "system.inpcrd"
+        args.inpcrd = DEFAULT_INPCRD
     if args.output_dir is None:
-        args.output_dir = args.study_dir / "amber_simulation"
+        args.output_dir = DEFAULT_OUTPUT_DIR
     args.prmtop = args.prmtop.resolve()
     args.inpcrd = args.inpcrd.resolve()
     args.output_dir = args.output_dir.resolve()
@@ -90,17 +97,21 @@ def main() -> None:
     simulation.context.setVelocitiesToTemperature(args.temperature * unit.kelvin)
 
     simulation.reporters.append(
-        DCDReporter(str(args.output_dir / "trajectory.dcd"), args.report_interval)
+        DCDReporter(str(args.output_dir / "trajectory-apo.dcd"), args.report_interval)
     )
     simulation.reporters.append(
         StateDataReporter(
-            str(args.output_dir / "state.csv"),
+            str(args.output_dir / "log-apo.txt"),
             args.report_interval,
             step=True,
             potentialEnergy=True,
             temperature=True,
-            separator=",",
+            separator="\t",
         )
+    )
+
+    simulation.reporters.append(
+        CheckpointReporter(str(args.output_dir / "checkpoint-apo.chk"), args.report_interval)
     )
 
     simulation.step(args.steps)
