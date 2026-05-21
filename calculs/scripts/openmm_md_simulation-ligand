@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from openmm import LangevinMiddleIntegrator, unit
+from openmm import LangevinMiddleIntegrator, MonteCarloBarostat, unit
 from openmm.app import (
     AmberInpcrdFile,
     AmberPrmtopFile,
@@ -51,11 +51,16 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=f"Directori de sortida. Per defecte: {DEFAULT_OUTPUT_DIR}.",
     )
-    parser.add_argument("--steps", type=int, default=5000)
+    parser.add_argument("--steps", type=int, default=1000000)
+    parser.add_argument("--equilibration-steps", type=int, default=1000)
     parser.add_argument("--temperature", type=float, default=300.0)
     parser.add_argument("--friction", type=float, default=1.0, help="1/ps")
-    parser.add_argument("--timestep-fs", type=float, default=2.0)
-    parser.add_argument("--report-interval", type=int, default=500)
+    parser.add_argument("--timestep-fs", type=float, default=4.0)
+    parser.add_argument("--hydrogen-mass", type=float, default=1.5, help="amu; posa 0 per desactivar HMR")
+    parser.add_argument("--pressure", type=float, default=1.0, help="atm; posa 0 per desactivar el barostat")
+    parser.add_argument("--barostat-interval", type=int, default=25)
+    parser.add_argument("--ewald-error-tolerance", type=float, default=0.0005)
+    parser.add_argument("--report-interval", type=int, default=10000)
     return parser.parse_args()
 
 
@@ -71,6 +76,9 @@ def main() -> None:
     args.inpcrd = args.inpcrd.resolve()
     args.output_dir = args.output_dir.resolve()
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    dcd_path = args.output_dir / "trajectory-ligand.dcd"
+    log_path = args.output_dir / "log-ligand.txt"
+    checkpoint_path = args.output_dir / "checkpoint-ligand.chk"
 
     prmtop = AmberPrmtopFile(str(args.prmtop))
     inpcrd = AmberInpcrdFile(str(args.inpcrd))
@@ -79,10 +87,23 @@ def main() -> None:
     create_system_kwargs = {
         "nonbondedMethod": PME if has_periodic_box else NoCutoff,
         "constraints": HBonds,
+        "rigidWater": True,
+        "ewaldErrorTolerance": args.ewald_error_tolerance,
     }
     if has_periodic_box:
         create_system_kwargs["nonbondedCutoff"] = 1.0 * unit.nanometer
+    if args.hydrogen_mass > 0:
+        create_system_kwargs["hydrogenMass"] = args.hydrogen_mass * unit.amu
+
     system = prmtop.createSystem(**create_system_kwargs)
+    if has_periodic_box and args.pressure > 0:
+        system.addForce(
+            MonteCarloBarostat(
+                args.pressure * unit.atmospheres,
+                args.temperature * unit.kelvin,
+                args.barostat_interval,
+            )
+        )
 
     integrator = LangevinMiddleIntegrator(
         args.temperature * unit.kelvin,
@@ -90,28 +111,38 @@ def main() -> None:
         args.timestep_fs * unit.femtoseconds,
     )
     simulation = Simulation(prmtop.topology, system, integrator)
-    simulation.context.setPositions(inpcrd.positions)
-    if inpcrd.boxVectors is not None:
-        simulation.context.setPeriodicBoxVectors(*inpcrd.boxVectors)
-    simulation.minimizeEnergy()
-    simulation.context.setVelocitiesToTemperature(args.temperature * unit.kelvin)
+    restarting = checkpoint_path.exists()
+    if restarting:
+        print(f"Carregant checkpoint: {checkpoint_path}")
+        simulation.context.loadCheckpoint(checkpoint_path.read_bytes())
+    else:
+        print("Comencant simulacio nova.")
+        simulation.context.setPositions(inpcrd.positions)
+        if inpcrd.boxVectors is not None:
+            simulation.context.setPeriodicBoxVectors(*inpcrd.boxVectors)
+        print("Minimitzant energia...")
+        simulation.minimizeEnergy()
+        print("Equilibrant...")
+        simulation.context.setVelocitiesToTemperature(args.temperature * unit.kelvin)
+        simulation.step(args.equilibration_steps)
 
     simulation.reporters.append(
-        DCDReporter(str(args.output_dir / "trajectory-ligand.dcd"), args.report_interval)
+        DCDReporter(str(dcd_path), args.report_interval, append=restarting and dcd_path.exists())
     )
     simulation.reporters.append(
         StateDataReporter(
-            str(args.output_dir / "log-ligand.txt"),
+            str(log_path),
             args.report_interval,
             step=True,
             potentialEnergy=True,
             temperature=True,
             separator="\t",
+            append=restarting and log_path.exists(),
         )
     )
 
     simulation.reporters.append(
-        CheckpointReporter(str(args.output_dir / "checkpoint-ligand.chk"), args.report_interval)
+        CheckpointReporter(str(checkpoint_path), args.report_interval)
     )
 
     simulation.step(args.steps)
