@@ -12,7 +12,7 @@ import numpy as np
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parents[2]
 DEFAULT_DATA_DIR = PROJECT_ROOT / "calculs" / "analisi" / "data"
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "calculs" / "analisi" / "resultats" / "resultats"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "calculs" / "analisi" / "resultats" / "grafics"
 DEFAULT_SETUP_DIR = PROJECT_ROOT / "calculs" / "prepared pdbs" / "02_openmm_md_setup"
 DEFAULT_REPORT_INTERVAL = 10000
 DEFAULT_TIMESTEP_FS = 4.0
