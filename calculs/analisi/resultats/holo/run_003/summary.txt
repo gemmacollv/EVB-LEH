@@ -1,0 +1,16 @@
+System: holo
+Run: run_003
+Topology: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_holo/protein_holo.prmtop
+Trajectory: /home/10034103@uvic.local/EVB-LEH/calculs/analisi/data/holo/run_003/trajectory-holo.dcd
+Frames trajectoria: 407
+Temps final trajectoria (ns): 16.240000
+RMSD mitja proteina (nm): 2.247573
+Radi de gir mitja (nm): 2.270340
+RMSF CA maxim (nm): 2.603755
+Ponts d'hidrogen mitjans: 201.422604
+Log: /home/10034103@uvic.local/EVB-LEH/calculs/analisi/data/holo/run_003/log-holo.txt
+Log frames: 407
+Ultim pas log: 8170000
+Interval report assumit: 10000 passos
+Temperatura mitjana (K): 301.802807
+Energia potencial mitjana (kJ/mol): -404497.224151

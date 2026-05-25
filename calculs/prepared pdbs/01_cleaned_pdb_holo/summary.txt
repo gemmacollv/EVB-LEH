@@ -1,0 +1,6 @@
+Input PDB: input/leh_1nww.pdb
+Output PDB: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/01_cleaned_pdb_holo/cleaned_holo.pdb
+Residus HETATM conservats: HPN=18
+Residus HETATM eliminats: HOH=378, MES=12
+Residus conservats per defecte: HPN
+Residus eliminats per defecte: HOH, MES, WAT

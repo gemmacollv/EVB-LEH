@@ -8,6 +8,8 @@ __pycache__/
 *out.txt
 *.out
 *.err
+.dcd
+.csv
 
 # C extensions
 *.so
@@ -212,3 +214,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Molecular dynamics generated files
+*.dcd
+*.chk
+calculs/analisi/data/
+OTHER/study_runs/
+OTHER/openmm_simulation/

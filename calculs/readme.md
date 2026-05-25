@@ -7,7 +7,7 @@ Un cop importat el PDB, els passos que seguirem per tal de realitzar la dinàmic
 
 1. Natejar PDB
 2. Afegir protonació i càrregues
-3. Preparar prtoeïna amb i sense lligands
+3. Preparar prtoeïna amb i sense holo
 4. Executar _Molecular Dynamics_ (MD)
 5. Analitzar RMSD, RMSF i radi de gir
 
@@ -17,7 +17,7 @@ El següent codi (01_clean_pdb.py) agafa un fitxer .pddb i elimina HOH, MES i HP
 
 HOH = aigües cristal·logràfiques
 MES = buffer
-HPN = lligand/inhibidor o molècula no estàndard
+HPN = holo/inhibidor o molècula no estàndard
 
 
 ```bash
@@ -32,7 +32,7 @@ Addició d'hidrògens a pH 7.0, definició de l'estat de protonació i preparaci
 bash scripts/run_add_protonation.sh"
 ```
 
-## 3. Preparar prtoeïna amb i sense lligands
+## 3. Preparar prtoeïna amb i sense holo
 ```bash
 bash scripts/run_prepare_variants.sh"
 ```

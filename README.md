@@ -32,7 +32,7 @@ També hi ha una versió separada del protocol en petits scripts, seguint aquest
 
 1. netejar PDB
 2. afegir protonació i carregues
-3. preparar variants amb i sense lligands
+3. preparar variants amb i sense holo
 4. executar MD
 5. analitzar RMSD, RMSF i radi de gir
 

@@ -1,0 +1,15 @@
+System: apo
+Input PDB: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/01_cleaned_pdb/protein_only_cleaned.pdb
+PRMTOP: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_apo/protein_apo.prmtop
+INPCRD: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_apo/protein_apo.inpcrd
+Solvated PDB: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_apo/protein_apo_solvated.pdb
+Protein force field: amber14-all.xml
+Water force field: amber14/tip3p.xml
+Nonbonded method: PME
+Constraints: None during AMBER export; simulation can apply HBonds.
+pH: 7.0
+Padding (nm): 1.2
+Ionic strength (M): 0.15
+Temperature (K): 300.0
+Atoms totals: 30242
+Box vectors (nm): [Vec3(x=6.871158114823315, y=0, z=0), Vec3(x=0, y=6.871158114823315, z=0), Vec3(x=0, y=0, z=6.871158114823315)]
