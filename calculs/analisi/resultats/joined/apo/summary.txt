@@ -1,0 +1,12 @@
+System: apo
+Runs units: run_001, run_002
+Topology: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_apo/protein_apo.prmtop
+Frames totals: 557
+Temps final concatenat (ns): 22.240000
+RMSD mitja proteina (nm): 0.200215
+Radi de gir mitja (nm): 1.858024
+RMSF CA maxim (nm): 0.304854
+Ponts d'hidrogen mitjans: 197.949731
+Thermo frames: 557
+Temperatura mitjana (K): 301.731848
+Energia potencial mitjana (kJ/mol): -400161.904295
