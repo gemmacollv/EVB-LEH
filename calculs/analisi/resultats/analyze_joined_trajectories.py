@@ -276,7 +276,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         rmsf * 10.0,
         f"Flexibilitat per residu C-α del sistema {system_label}",
         "Residus C-α",
-        "RMSF (angstroms)",
+        "RMSF (Å)",
     )
 
     hbond_summary = ["Ponts d'hidrogen: omesos"]
