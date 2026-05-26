@@ -225,7 +225,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         joined.save_dcd(str(kind_output_dir / f"joined-{kind.name}.dcd"))
 
     protein_atoms = select_atoms(joined.topology, "protein", "proteina")
-    ca_atoms = select_atoms(joined.topology, "protein and name CA", "C-alpha")
+    ca_atoms = select_atoms(joined.topology, "protein and name CA", "C-α")
 
     protein_traj = joined.atom_slice(protein_atoms)
     protein_traj.superpose(protein_traj, frame=0)
@@ -253,9 +253,31 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         [[residue, value] for residue, value in zip(residues, rmsf, strict=True)],
     )
 
-    save_line_plot(kind_output_dir / "rmsd.png", times_ns, rmsd, f"{kind.name}: RMSD concatenat", "Temps concatenat (ns)", "RMSD (nm)")
-    save_line_plot(kind_output_dir / "radius_of_gyration.png", times_ns, rg, f"{kind.name}: radi de gir concatenat", "Temps concatenat (ns)", "Rg (nm)")
-    save_line_plot(kind_output_dir / "rmsf_ca.png", np.arange(len(rmsf)), rmsf, f"{kind.name}: RMSF CA concatenat", "Residus CA", "RMSF (nm)")
+    system_label = kind.name.upper()
+    save_line_plot(
+        kind_output_dir / "rmsd.png",
+        times_ns,
+        rmsd,
+        f"Estabilitat estructural del sistema {system_label}",
+        "Temps (ns)",
+        "RMSD (nm)",
+    )
+    save_line_plot(
+        kind_output_dir / "radius_of_gyration.png",
+        times_ns,
+        rg,
+        f"Compacitat global del sistema {system_label}",
+        "Temps (ns)",
+        "Radi de gir (nm)",
+    )
+    save_line_plot(
+        kind_output_dir / "rmsf_ca.png",
+        np.arange(1, len(rmsf) + 1),
+        rmsf * 10.0,
+        f"Flexibilitat per residu C-α del sistema {system_label}",
+        "Residus C-α",
+        "RMSF (angstroms)",
+    )
 
     hbond_summary = ["Ponts d'hidrogen: omesos"]
     if not args.skip_hbonds:
@@ -265,7 +287,14 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             ["frame", "time_ns", "n_hydrogen_bonds"],
             [[idx, time_ns, int(value)] for idx, (time_ns, value) in enumerate(zip(times_ns, hbond_counts, strict=True))],
         )
-        save_line_plot(kind_output_dir / "hydrogen_bonds.png", times_ns, hbond_counts, f"{kind.name}: ponts d'hidrogen", "Temps concatenat (ns)", "Nombre de ponts")
+        save_line_plot(
+            kind_output_dir / "hydrogen_bonds.png",
+            times_ns,
+            hbond_counts,
+            f"Xarxa de ponts d'hidrogen del sistema {system_label}",
+            "Temps (ns)",
+            "Nombre de ponts d'hidrogen",
+        )
         hbond_summary = [f"Ponts d'hidrogen mitjans: {float(np.mean(hbond_counts)):.6f}"]
 
     thermo_summary = write_thermo(kind, run_dirs, kind_output_dir, args.timestep_fs)
