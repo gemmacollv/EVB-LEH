@@ -1,0 +1,5 @@
+System: holo
+Runs units: run_001, run_002, run_003, run_004, run_005, run_006
+Frames totals: 2421
+Temps final concatenat (ns): 96.800000
+Ponts d'hidrogen proteina-lligand mitjans (HPN): 4.926477

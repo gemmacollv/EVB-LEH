@@ -71,6 +71,11 @@ def parse_args() -> argparse.Namespace:
         help="Nom del residu del lligand per filtrar ponts d'hidrogen lligand-entorn.",
     )
     parser.add_argument(
+        "--only-ligand-hbonds",
+        action="store_true",
+        help="Calcula nomes els ponts d'hidrogen proteina-lligand per accelerar aquesta analisi.",
+    )
+    parser.add_argument(
         "--save-joined-dcd",
         action="store_true",
         help="Desa la trajectoria concatenada com joined-apo.dcd/joined-holo.dcd.",
@@ -212,26 +217,69 @@ def compute_hbond_counts(md, traj) -> np.ndarray:
 
 
 def compute_ligand_hbond_counts(md, traj, ligand_resname: str) -> np.ndarray:
-    ligand_atoms = set(traj.topology.select(f"resname {ligand_resname}"))
-    if not ligand_atoms:
+    ligand_atoms_original = set(traj.topology.select(f"resname {ligand_resname}"))
+    if not ligand_atoms_original:
         raise ValueError(f"No s'han trobat atoms del lligand amb resname {ligand_resname}.")
 
-    try:
-        hbonds_by_frame = md.wernet_nilsson(traj, periodic=True)
-    except Exception:
-        hbonds_by_frame = md.wernet_nilsson(traj, periodic=False)
+    protein_atoms = traj.topology.select("protein")
+    if len(protein_atoms) == 0:
+        raise ValueError("No s'han trobat atoms de proteina per calcular ponts proteina-lligand.")
 
-    counts = []
-    for frame_hbonds in hbonds_by_frame:
-        ligand_hbonds = 0
-        for hbond in frame_hbonds:
-            hbond_atoms = set(int(atom_index) for atom_index in hbond)
-            touches_ligand = bool(hbond_atoms & ligand_atoms)
-            touches_environment = bool(hbond_atoms - ligand_atoms)
-            if touches_ligand and touches_environment:
-                ligand_hbonds += 1
-        counts.append(ligand_hbonds)
-    return np.array(counts, dtype=int)
+    try:
+        nearby_by_frame = md.compute_neighbors(
+            traj,
+            0.45,
+            query_indices=np.array(sorted(ligand_atoms_original), dtype=int),
+            haystack_indices=protein_atoms,
+            periodic=True,
+        )
+    except Exception:
+        nearby_by_frame = md.compute_neighbors(
+            traj,
+            0.45,
+            query_indices=np.array(sorted(ligand_atoms_original), dtype=int),
+            haystack_indices=protein_atoms,
+            periodic=False,
+        )
+
+    selected_atoms = set(ligand_atoms_original)
+    for nearby_atoms in nearby_by_frame:
+        for atom_index in nearby_atoms:
+            residue = traj.topology.atom(int(atom_index)).residue
+            selected_atoms.update(atom.index for atom in residue.atoms)
+
+    if selected_atoms == ligand_atoms_original:
+        return np.zeros(traj.n_frames, dtype=int)
+
+    local_traj = traj.atom_slice(np.array(sorted(selected_atoms), dtype=int))
+    ligand_atoms = set(local_traj.topology.select(f"resname {ligand_resname}"))
+
+    try:
+        hbonds = md.baker_hubbard(local_traj, freq=0.0, periodic=True)
+    except Exception:
+        hbonds = md.baker_hubbard(local_traj, freq=0.0, periodic=False)
+
+    ligand_hbonds = []
+    for donor, hydrogen, acceptor in hbonds:
+        hbond_atoms = {int(donor), int(hydrogen), int(acceptor)}
+        touches_ligand = bool(hbond_atoms & ligand_atoms)
+        touches_environment = bool(hbond_atoms - ligand_atoms)
+        if touches_ligand and touches_environment:
+            ligand_hbonds.append([int(donor), int(hydrogen), int(acceptor)])
+
+    if not ligand_hbonds:
+        return np.zeros(local_traj.n_frames, dtype=int)
+
+    ligand_hbonds = np.array(ligand_hbonds, dtype=int)
+    h_acceptor_pairs = ligand_hbonds[:, [1, 2]]
+    try:
+        distances = md.compute_distances(local_traj, h_acceptor_pairs, periodic=True)
+        angles = md.compute_angles(local_traj, ligand_hbonds, periodic=True)
+    except Exception:
+        distances = md.compute_distances(local_traj, h_acceptor_pairs, periodic=False)
+        angles = md.compute_angles(local_traj, ligand_hbonds, periodic=False)
+    present = (distances < 0.25) & (np.degrees(angles) > 120.0)
+    return np.sum(present, axis=1).astype(int)
 
 
 def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: Path, args: argparse.Namespace) -> bool:
@@ -242,13 +290,47 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
 
     kind_output_dir = output_dir / kind.name
     kind_output_dir.mkdir(parents=True, exist_ok=True)
-    try:
-        joined = joined.image_molecules(inplace=False)
-    except Exception as exc:
-        print(f"Avís: no s ha pogut recentrar/aplicar PBC a {kind.name}: {exc}")
+    if not args.only_ligand_hbonds:
+        try:
+            joined = joined.image_molecules(inplace=False)
+        except Exception as exc:
+            print(f"Avís: no s ha pogut recentrar/aplicar PBC a {kind.name}: {exc}")
     times_ns = frame_times_ns(joined.n_frames, args.report_interval, args.timestep_fs)
 
     write_rows(kind_output_dir / "frame_map.csv", ["joined_frame", "run", "frame_in_run"], frame_map)
+
+    if args.only_ligand_hbonds:
+        if kind.name != "holo":
+            print("--only-ligand-hbonds nomes aplica al sistema holo; s'omet aquest sistema.")
+            return False
+        ligand_hbond_counts = compute_ligand_hbond_counts(md, joined, args.ligand_resname)
+        write_rows(
+            kind_output_dir / "ligand_hydrogen_bonds.csv",
+            ["frame", "time_ns", "n_ligand_hydrogen_bonds"],
+            [
+                [idx, time_ns, int(value)]
+                for idx, (time_ns, value) in enumerate(zip(times_ns, ligand_hbond_counts, strict=True))
+            ],
+        )
+        save_line_plot(
+            kind_output_dir / "ligand_hydrogen_bonds.png",
+            times_ns,
+            ligand_hbond_counts,
+            f"Ponts d'hidrogen proteina-lligand {args.ligand_resname}",
+            "Temps (ns)",
+            "Nombre de ponts d'hidrogen proteina-lligand",
+        )
+        summary = [
+            f"System: {kind.name}",
+            f"Runs units: {', '.join(run_dir.name for run_dir in run_dirs)}",
+            f"Frames totals: {joined.n_frames}",
+            f"Temps final concatenat (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final concatenat (ns): 0.000000",
+            f"Ponts d'hidrogen proteina-lligand mitjans ({args.ligand_resname}): {float(np.mean(ligand_hbond_counts)):.6f}",
+        ]
+        (kind_output_dir / "ligand_hydrogen_bonds_summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
+        print(f"Analisi de ponts proteina-lligand desada a: {kind_output_dir}")
+        return True
+
     if args.save_joined_dcd:
         joined.save_dcd(str(kind_output_dir / f"joined-{kind.name}.dcd"))
 
@@ -325,36 +407,36 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         )
         hbond_summary = [f"Ponts d'hidrogen mitjans: {float(np.mean(hbond_counts)):.6f}"]
 
-        if kind.name == "holo":
-            ligand_hbond_counts = compute_ligand_hbond_counts(md, joined, args.ligand_resname)
-            write_rows(
-                kind_output_dir / "ligand_hydrogen_bonds.csv",
-                ["frame", "time_ns", "n_ligand_hydrogen_bonds"],
-                [
-                    [idx, time_ns, int(value)]
-                    for idx, (time_ns, value) in enumerate(zip(times_ns, ligand_hbond_counts, strict=True))
-                ],
-            )
-            save_line_plot(
-                kind_output_dir / "ligand_hydrogen_bonds.png",
-                times_ns,
-                ligand_hbond_counts,
-                f"Ponts d'hidrogen amb el lligand {args.ligand_resname}",
-                "Temps (ns)",
-                "Nombre de ponts d'hidrogen lligand-entorn",
-            )
-            hbond_summary.append(
-                f"Ponts d'hidrogen lligand-entorn mitjans ({args.ligand_resname}): "
-                f"{float(np.mean(ligand_hbond_counts)):.6f}"
-            )
+    if kind.name == "holo" and (not args.skip_hbonds or args.only_ligand_hbonds):
+        ligand_hbond_counts = compute_ligand_hbond_counts(md, joined, args.ligand_resname)
+        write_rows(
+            kind_output_dir / "ligand_hydrogen_bonds.csv",
+            ["frame", "time_ns", "n_ligand_hydrogen_bonds"],
+            [
+                [idx, time_ns, int(value)]
+                for idx, (time_ns, value) in enumerate(zip(times_ns, ligand_hbond_counts, strict=True))
+            ],
+        )
+        save_line_plot(
+            kind_output_dir / "ligand_hydrogen_bonds.png",
+            times_ns,
+            ligand_hbond_counts,
+            f"Ponts d'hidrogen proteina-lligand {args.ligand_resname}",
+            "Temps (ns)",
+            "Nombre de ponts d'hidrogen proteina-lligand",
+        )
+        hbond_summary.append(
+            f"Ponts d'hidrogen proteina-lligand mitjans ({args.ligand_resname}): "
+            f"{float(np.mean(ligand_hbond_counts)):.6f}"
+        )
 
     thermo_summary = write_thermo(kind, run_dirs, kind_output_dir, args.timestep_fs)
     summary = [
         f"System: {kind.name}",
-        f"Runs units: {', '.join(run_dir.name for run_dir in run_dirs)}",
+        f"Runs: {', '.join(run_dir.name for run_dir in run_dirs)}",
         f"Topology: {kind.topology}",
         f"Frames totals: {joined.n_frames}",
-        f"Temps final concatenat (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final (ns): 0.000000",
+        f"Temps final (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final (ns): 0.000000",
         f"RMSD mitja proteina (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitjà proteina (nm): 0.000000",
         f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitjà (nm): 0.000000",
         f"RMSF CA maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF CA màxim (nm): 0.000000",

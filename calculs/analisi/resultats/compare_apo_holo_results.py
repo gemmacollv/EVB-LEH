@@ -16,7 +16,7 @@ DEFAULT_OUTPUT_DIR = SCRIPT_DIR / "comparacio_apo_holo"
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Compara els resultats concatenats APO i HOLO i genera grafics "
+            "Compara els resultats APO i HOLO i genera grafics "
             "superposats per veure les diferencies principals."
         )
     )
@@ -125,7 +125,7 @@ def save_rmsf_plot(output_path: Path, apo: np.ndarray, holo: np.ndarray) -> None
     plt.figure(figsize=(9, 5), dpi=300)
     plt.plot(x_values, apo[:n_points] * 10.0, label="APO", linewidth=1.4)
     plt.plot(x_values, holo[:n_points] * 10.0, label="HOLO", linewidth=1.4)
-    plt.title("Comparacio RMSF")
+    plt.title("Comparació RMSF")
     plt.xlabel("Residus C-alpha")
     plt.ylabel("RMSF (A)")
     plt.grid(True, linestyle="--", alpha=0.4)
