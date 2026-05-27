@@ -1,12 +1,12 @@
 System: holo
-Runs units: run_001, run_002, run_003
+Runs units: run_001, run_002, run_003, run_004, run_005, run_006
 Topology: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_holo/protein_holo.prmtop
-Frames totals: 1049
-Temps final concatenat (ns): 41.920000
-RMSD mitja proteina (nm): 0.184621
-Radi de gir mitja (nm): 1.855003
-RMSF CA maxim (nm): 0.331016
-Ponts d'hidrogen mitjans: 199.748332
-Thermo frames: 1053
-Temperatura mitjana (K): 301.787455
-Energia potencial mitjana (kJ/mol): -404399.883177
+Frames totals: 2256
+Temps final concatenat (ns): 90.200000
+RMSD mitja proteina (nm): 0.191768
+Radi de gir mitja (nm): 1.855902
+RMSF CA maxim (nm): 0.330866
+Ponts d'hidrogen mitjans: 200.812500
+Thermo frames: 2265
+Temperatura mitjana (K): 301.781436
+Energia potencial mitjana (kJ/mol): -404435.519248
