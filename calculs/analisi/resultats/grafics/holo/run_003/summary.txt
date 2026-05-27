@@ -1,0 +1,9 @@
+System: holo
+Run: run_003
+Topology: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_holo/protein_holo.prmtop
+Trajectory: /home/10034103@uvic.local/EVB-LEH/calculs/analisi/data/holo/run_003/trajectory-holo.dcd
+Frames trajectoria: 404
+Temps final trajectoria (ns): 16.120000
+RMSD mitja proteina (nm): 0.149850
+Radi de gir mitja (nm): 1.856057
+RMSF CA maxim (nm): 0.233681

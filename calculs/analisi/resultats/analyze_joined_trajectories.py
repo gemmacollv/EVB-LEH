@@ -66,6 +66,11 @@ def parse_args() -> argparse.Namespace:
         help="Omet el calcul de ponts d'hidrogen, que pot ser mes lent.",
     )
     parser.add_argument(
+        "--ligand-resname",
+        default="HPN",
+        help="Nom del residu del lligand per filtrar ponts d'hidrogen lligand-entorn.",
+    )
+    parser.add_argument(
         "--save-joined-dcd",
         action="store_true",
         help="Desa la trajectoria concatenada com joined-apo.dcd/joined-holo.dcd.",
@@ -206,6 +211,29 @@ def compute_hbond_counts(md, traj) -> np.ndarray:
     return np.array([len(frame_hbonds) for frame_hbonds in hbonds_by_frame], dtype=int)
 
 
+def compute_ligand_hbond_counts(md, traj, ligand_resname: str) -> np.ndarray:
+    ligand_atoms = set(traj.topology.select(f"resname {ligand_resname}"))
+    if not ligand_atoms:
+        raise ValueError(f"No s'han trobat atoms del lligand amb resname {ligand_resname}.")
+
+    try:
+        hbonds_by_frame = md.wernet_nilsson(traj, periodic=True)
+    except Exception:
+        hbonds_by_frame = md.wernet_nilsson(traj, periodic=False)
+
+    counts = []
+    for frame_hbonds in hbonds_by_frame:
+        ligand_hbonds = 0
+        for hbond in frame_hbonds:
+            hbond_atoms = set(int(atom_index) for atom_index in hbond)
+            touches_ligand = bool(hbond_atoms & ligand_atoms)
+            touches_environment = bool(hbond_atoms - ligand_atoms)
+            if touches_ligand and touches_environment:
+                ligand_hbonds += 1
+        counts.append(ligand_hbonds)
+    return np.array(counts, dtype=int)
+
+
 def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: Path, args: argparse.Namespace) -> bool:
     joined, frame_map = load_and_join_trajectories(md, kind, run_dirs)
     if joined is None:
@@ -297,16 +325,39 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         )
         hbond_summary = [f"Ponts d'hidrogen mitjans: {float(np.mean(hbond_counts)):.6f}"]
 
+        if kind.name == "holo":
+            ligand_hbond_counts = compute_ligand_hbond_counts(md, joined, args.ligand_resname)
+            write_rows(
+                kind_output_dir / "ligand_hydrogen_bonds.csv",
+                ["frame", "time_ns", "n_ligand_hydrogen_bonds"],
+                [
+                    [idx, time_ns, int(value)]
+                    for idx, (time_ns, value) in enumerate(zip(times_ns, ligand_hbond_counts, strict=True))
+                ],
+            )
+            save_line_plot(
+                kind_output_dir / "ligand_hydrogen_bonds.png",
+                times_ns,
+                ligand_hbond_counts,
+                f"Ponts d'hidrogen amb el lligand {args.ligand_resname}",
+                "Temps (ns)",
+                "Nombre de ponts d'hidrogen lligand-entorn",
+            )
+            hbond_summary.append(
+                f"Ponts d'hidrogen lligand-entorn mitjans ({args.ligand_resname}): "
+                f"{float(np.mean(ligand_hbond_counts)):.6f}"
+            )
+
     thermo_summary = write_thermo(kind, run_dirs, kind_output_dir, args.timestep_fs)
     summary = [
         f"System: {kind.name}",
         f"Runs units: {', '.join(run_dir.name for run_dir in run_dirs)}",
         f"Topology: {kind.topology}",
         f"Frames totals: {joined.n_frames}",
-        f"Temps final concatenat (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final concatenat (ns): 0.000000",
-        f"RMSD mitja proteina (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitja proteina (nm): 0.000000",
-        f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitja (nm): 0.000000",
-        f"RMSF CA maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF CA maxim (nm): 0.000000",
+        f"Temps final concatenat (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final (ns): 0.000000",
+        f"RMSD mitja proteina (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitjà proteina (nm): 0.000000",
+        f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitjà (nm): 0.000000",
+        f"RMSF CA maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF CA màxim (nm): 0.000000",
         *hbond_summary,
         *thermo_summary,
     ]
