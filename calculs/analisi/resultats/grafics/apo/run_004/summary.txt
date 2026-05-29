@@ -1,9 +1,0 @@
-System: apo
-Run: run_004
-Topology: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_apo/protein_apo.prmtop
-Trajectory: /home/10034103@uvic.local/EVB-LEH/calculs/analisi/data/apo/run_004/trajectory-apo.dcd
-Frames trajectoria: 408
-Temps final trajectoria (ns): 16.280000
-RMSD mitja proteina (nm): 0.869319
-Radi de gir mitja (nm): 3.068637
-RMSF CA maxim (nm): 1.563970
