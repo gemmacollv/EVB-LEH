@@ -9,15 +9,15 @@ Grafics generats:
 - ponts_hidrogen_apo_holo.png
 
 Valors del resum original:
-Energia potencial mitjana (kJ/mol): APO=-400217.726067 | HOLO=-404399.883177
-Frames totals: APO=964 | HOLO=1049
-Ponts d'hidrogen mitjans: APO=196.496888 | HOLO=199.748332
-RMSD mitja proteina (nm): APO=0.202325 | HOLO=0.184621
-RMSF CA maxim (nm): APO=0.286907 | HOLO=0.331016
-Radi de gir mitja (nm): APO=1.857534 | HOLO=1.855003
-Runs units: APO=run_001, run_002, run_003 | HOLO=run_001, run_002, run_003
+Energia potencial mitjana (kJ/mol): APO=-400277.265287 | HOLO=-404435.519248
+Frames totals: APO=2185 | HOLO=2256
+Ponts d'hidrogen mitjans: APO=197.523112 | HOLO=200.812500
+RMSD mitja proteina (nm): APO=0.200858 | HOLO=0.191768
+RMSF CA maxim (nm): APO=0.258419 | HOLO=0.330866
+Radi de gir mitja (nm): APO=1.852561 | HOLO=1.855902
+Runs units: APO=run_001, run_002, run_003, run_004, run_005, run_006 | HOLO=run_001, run_002, run_003, run_004, run_005, run_006
 System: APO=apo | HOLO=holo
-Temperatura mitjana (K): APO=301.821522 | HOLO=301.787455
-Temps final concatenat (ns): APO=38.520000 | HOLO=41.920000
-Thermo frames: APO=964 | HOLO=1053
+Temperatura mitjana (K): APO=301.786519 | HOLO=301.781436
+Temps final concatenat (ns): APO=87.360000 | HOLO=90.200000
+Thermo frames: APO=2185 | HOLO=2265
 Topology: APO=/home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_apo/protein_apo.prmtop | HOLO=/home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_holo/protein_holo.prmtop

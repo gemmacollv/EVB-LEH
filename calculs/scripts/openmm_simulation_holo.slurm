@@ -10,6 +10,7 @@
 
 cd /home/10034103@uvic.local/EVB-LEH/calculs/scripts
 
+source /home/10034103/miniforge3/etc/profile.d/conda.sh
 conda activate md-openmm
 RUN_NAME="${RUN_NAME:-run_001}"
 python 03_openmm_md_simulation_holo.py --run-name "$RUN_NAME"

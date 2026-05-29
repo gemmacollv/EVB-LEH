@@ -4,7 +4,7 @@ import argparse
 import signal
 from pathlib import Path
 
-from openmm import LangevinMiddleIntegrator, MonteCarloBarostat, unit
+from openmm import LangevinMiddleIntegrator, MonteCarloBarostat, Platform, Vec3, XmlSerializer, unit
 from openmm.app import (
     AmberInpcrdFile,
     AmberPrmtopFile,
@@ -90,6 +90,12 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--state-in",
+        type=Path,
+        default=None,
+        help="State XML d un tram anterior per reiniciar de manera independent de la plataforma.",
+    )
+    parser.add_argument(
         "--steps",
         type=int,
         default=DEFAULT_STEPS,
@@ -110,6 +116,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--barostat-interval", type=int, default=25)
     parser.add_argument("--ewald-error-tolerance", type=float, default=0.0005)
     parser.add_argument("--report-interval", type=int, default=10000)
+    parser.add_argument(
+        "--platform",
+        default="CPU",
+        help="Plataforma OpenMM a utilitzar. Per defecte: CPU.",
+    )
     return parser.parse_args()
 
 
@@ -182,11 +193,17 @@ def write_final_pdb_image(topology, positions, output_path: Path) -> None:
     print(f"Imatge final desada a: {output_path}")
 
 
-def save_final_outputs(simulation, prmtop, checkpoint_path: Path, output_dir: Path, steps_done: int) -> None:
+def save_final_outputs(simulation, prmtop, checkpoint_path: Path, state_path: Path, output_dir: Path, steps_done: int) -> None:
     checkpoint_path.write_bytes(simulation.context.createCheckpoint())
+    state = simulation.context.getState(
+        getPositions=True,
+        getVelocities=True,
+        getEnergy=True,
+        getParameters=True,
+        enforcePeriodicBox=True,
+    )
+    state_path.write_text(XmlSerializer.serialize(state), encoding="utf-8")
     print(f"Passos de produccio executats en aquest job: {steps_done}")
-
-    state = simulation.context.getState(getPositions=True, getEnergy=True)
     final_pdb_path = output_dir / "final.pdb"
     final_image_path = output_dir / "final.png"
     with final_pdb_path.open("w", encoding="utf-8") as handle:
@@ -195,9 +212,86 @@ def save_final_outputs(simulation, prmtop, checkpoint_path: Path, output_dir: Pa
 
     energy = state.getPotentialEnergy().value_in_unit(unit.kilojoule_per_mole)
     print(f"Checkpoint final desat a: {checkpoint_path}")
+    print(f"State XML final desat a: {state_path}")
     print(f"PDB final desat a: {final_pdb_path}")
     print(f"Energia final: {energy:.3f} kJ/mol")
     print(f"Resultats a: {output_dir.resolve()}")
+
+
+def get_platform(platform_name: str) -> Platform:
+    available = [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
+    try:
+        return Platform.getPlatformByName(platform_name)
+    except Exception as exc:
+        available_text = ", ".join(available) if available else "cap"
+        raise SystemExit(
+            f"No s'ha trobat la plataforma OpenMM {platform_name!r}. "
+            f"Plataformes disponibles: {available_text}"
+        ) from exc
+
+
+def state_path_for_checkpoint(checkpoint_file: Path) -> Path:
+    return checkpoint_file.with_name(checkpoint_file.name.replace("checkpoint-", "state-").replace(".chk", ".xml"))
+
+
+def trajectory_path_for_checkpoint(checkpoint_file: Path) -> Path:
+    return checkpoint_file.with_name(checkpoint_file.name.replace("checkpoint-", "trajectory-").replace(".chk", ".dcd"))
+
+
+def load_restart(
+    simulation,
+    checkpoint_file: Path | None,
+    state_file: Path | None,
+    final_pdb_file: Path | None,
+    inpcrd,
+    trajectory_file: Path | None,
+    prmtop_file: Path,
+    temperature: float,
+    label: str,
+) -> str:
+    if checkpoint_file is not None and checkpoint_file.exists():
+        try:
+            print(f"Carregant checkpoint {label}: {checkpoint_file}")
+            simulation.context.loadCheckpoint(checkpoint_file.read_bytes())
+            return "checkpoint"
+        except Exception as exc:
+            print(f"No s'ha pogut carregar el checkpoint {label}: {exc}")
+
+    if state_file is not None and state_file.exists():
+        print(f"Carregant state XML {label}: {state_file}")
+        simulation.context.setState(XmlSerializer.deserialize(state_file.read_text(encoding="utf-8")))
+        return "state"
+
+    if final_pdb_file is not None and final_pdb_file.exists():
+        print(f"Carregant final.pdb {label}: {final_pdb_file}")
+        print("Atencio: reinici aproximat; es mantenen posicions pero es regeneren velocitats.")
+        pdb = PDBFile(str(final_pdb_file))
+        simulation.context.setPositions(pdb.positions)
+        if inpcrd.boxVectors is not None:
+            simulation.context.setPeriodicBoxVectors(*inpcrd.boxVectors)
+        simulation.context.setVelocitiesToTemperature(temperature * unit.kelvin)
+        return "pdb"
+
+    if trajectory_file is not None and trajectory_file.exists():
+        print(f"Carregant ultim frame DCD {label}: {trajectory_file}")
+        print("Atencio: reinici aproximat; es mantenen posicions pero es regeneren velocitats.")
+        try:
+            import mdtraj as md
+        except ModuleNotFoundError as exc:
+            raise SystemExit("mdtraj no esta instal-lat; no es pot recuperar l ultim frame del DCD.") from exc
+        trajectory = md.load(str(trajectory_file), top=str(prmtop_file))
+        frame = trajectory[-1]
+        simulation.context.setPositions(frame.xyz[0] * unit.nanometer)
+        if frame.unitcell_vectors is not None:
+            vectors = [Vec3(*vector) * unit.nanometer for vector in frame.unitcell_vectors[0]]
+            simulation.context.setPeriodicBoxVectors(*vectors)
+        elif inpcrd.boxVectors is not None:
+            simulation.context.setPeriodicBoxVectors(*inpcrd.boxVectors)
+        simulation.context.setVelocitiesToTemperature(temperature * unit.kelvin)
+        return "dcd"
+
+    tried = [str(path) for path in (checkpoint_file, state_file, final_pdb_file, trajectory_file) if path is not None]
+    raise SystemExit("No s'ha pogut trobar cap fitxer de reinici: " + ", ".join(tried))
 
 
 def main() -> None:
@@ -213,10 +307,13 @@ def main() -> None:
     args.output_dir = args.output_dir.resolve()
     if args.checkpoint_in is not None:
         args.checkpoint_in = args.checkpoint_in.resolve()
+    if args.state_in is not None:
+        args.state_in = args.state_in.resolve()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     dcd_path = args.output_dir / "trajectory-apo.dcd"
     log_path = args.output_dir / "log-apo.txt"
     checkpoint_path = args.output_dir / "checkpoint-apo.chk"
+    state_path = args.output_dir / "state-apo.xml"
 
     prmtop = AmberPrmtopFile(str(args.prmtop))
     inpcrd = AmberInpcrdFile(str(args.inpcrd))
@@ -248,17 +345,53 @@ def main() -> None:
         args.friction / unit.picosecond,
         args.timestep_fs * unit.femtoseconds,
     )
-    simulation = Simulation(prmtop.topology, system, integrator)
-    restarting_output = checkpoint_path.exists()
-    restarting_from_previous = args.checkpoint_in is not None and not restarting_output
+    platform = get_platform(args.platform)
+    print(f"Plataforma OpenMM: {platform.getName()}")
+    simulation = Simulation(prmtop.topology, system, integrator, platform)
+    restarting_output = checkpoint_path.exists() or state_path.exists()
+    restarting_from_state = args.state_in is not None and not restarting_output
+    restarting_from_previous = args.checkpoint_in is not None and not restarting_output and not restarting_from_state
+    restart_mode = "new"
     if restarting_output:
-        print(f"Carregant checkpoint: {checkpoint_path}")
-        simulation.context.loadCheckpoint(checkpoint_path.read_bytes())
+        restart_mode = load_restart(
+            simulation,
+            checkpoint_path,
+            state_path,
+            args.output_dir / "final.pdb",
+            inpcrd,
+            trajectory_path_for_checkpoint(checkpoint_path),
+            args.prmtop,
+            args.temperature,
+            "del directori de sortida",
+        )
+    elif restarting_from_state:
+        if not args.state_in.exists():
+            raise SystemExit(f"No existeix el state XML d entrada: {args.state_in}")
+        restart_mode = load_restart(
+            simulation,
+            None,
+            args.state_in,
+            args.state_in.parent / "final.pdb",
+            inpcrd,
+            None,
+            args.prmtop,
+            args.temperature,
+            "anterior",
+        )
     elif restarting_from_previous:
         if not args.checkpoint_in.exists():
             raise SystemExit(f"No existeix el checkpoint d entrada: {args.checkpoint_in}")
-        print(f"Carregant checkpoint anterior: {args.checkpoint_in}")
-        simulation.context.loadCheckpoint(args.checkpoint_in.read_bytes())
+        restart_mode = load_restart(
+            simulation,
+            args.checkpoint_in,
+            state_path_for_checkpoint(args.checkpoint_in),
+            args.checkpoint_in.parent / "final.pdb",
+            inpcrd,
+            trajectory_path_for_checkpoint(args.checkpoint_in),
+            args.prmtop,
+            args.temperature,
+            "anterior",
+        )
     else:
         print("Comencant simulacio nova.")
         simulation.context.setPositions(inpcrd.positions)
@@ -271,7 +404,7 @@ def main() -> None:
         simulation.step(args.equilibration_steps)
 
     simulation.reporters.append(
-        DCDReporter(str(dcd_path), args.report_interval, append=restarting_output and dcd_path.exists())
+        DCDReporter(str(dcd_path), args.report_interval, append=restarting_output and restart_mode not in {"pdb", "dcd"} and dcd_path.exists())
     )
     simulation.reporters.append(
         StateDataReporter(
@@ -281,7 +414,7 @@ def main() -> None:
             potentialEnergy=True,
             temperature=True,
             separator="\t",
-            append=restarting_output and log_path.exists(),
+            append=restarting_output and restart_mode not in {"pdb", "dcd"} and log_path.exists(),
         )
     )
 
@@ -307,7 +440,7 @@ def main() -> None:
             simulation.step(chunk_steps)
             steps_done += chunk_steps
     finally:
-        save_final_outputs(simulation, prmtop, checkpoint_path, args.output_dir, steps_done)
+        save_final_outputs(simulation, prmtop, checkpoint_path, state_path, args.output_dir, steps_done)
 
 
 if __name__ == "__main__":
