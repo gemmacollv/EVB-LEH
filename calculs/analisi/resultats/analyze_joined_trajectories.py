@@ -16,6 +16,10 @@ DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "calculs" / "analisi" / "resultats" / "joine
 DEFAULT_SETUP_DIR = PROJECT_ROOT / "calculs" / "prepared pdbs" / "02_openmm_md_setup"
 DEFAULT_REPORT_INTERVAL = 10000
 DEFAULT_TIMESTEP_FS = 4.0
+ACTIVE_SITE_RESIDUES = {
+    "LEU53", "MET73", "ARG94", "ASP96", "LEU98", "ASP127", "PHE129",
+    "LEU199", "MET219", "ARG240", "ASP242", "LEU244", "ASP273", "PHE275",
+}
 
 
 @dataclass(frozen=True)
@@ -45,7 +49,7 @@ SIMULATION_KINDS = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Uneix tots els runs apo/holo en memoria i calcula RMSD, RMSF CA, "
+            "Uneix tots els runs apo/holo en memoria i calcula RMSD, RMSF C-α, "
             "radi de gir i resum termodinamic per cada sistema."
         )
     )
@@ -108,6 +112,37 @@ def save_line_plot(output_path: Path, x_values, y_values, title: str, xlabel: st
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.grid(True, linestyle="--", alpha=0.4)
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
+
+
+def save_rmsf_plot(output_path: Path, residues: list[str], rmsf_nm: np.ndarray, title: str) -> None:
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ModuleNotFoundError:
+        print("Matplotlib no esta instal-lat; s'escriuen nomes els CSV.")
+        return
+
+    x_values = np.arange(1, len(rmsf_nm) + 1)
+    active_positions = [idx + 1 for idx, residue in enumerate(residues) if residue in ACTIVE_SITE_RESIDUES]
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.figure(figsize=(9, 5), dpi=300)
+    plt.plot(x_values, rmsf_nm, linewidth=1.4, label="RMSF C-α")
+    for position in active_positions:
+        plt.axvline(position, color="tab:red", linewidth=0.7, alpha=0.35)
+    if active_positions:
+        plt.scatter(active_positions, rmsf_nm[np.array(active_positions) - 1], color="tab:red", s=14, label="Centre actiu")
+    plt.title(title)
+    plt.xlabel("Residus C-α")
+    plt.ylabel("RMSF (nm)")
+    plt.grid(True, linestyle="--", alpha=0.4)
+    if active_positions:
+        plt.legend(fontsize=8)
     plt.tight_layout()
     plt.savefig(output_path)
     plt.close()
@@ -380,13 +415,11 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         "Temps (ns)",
         "Radi de gir (nm)",
     )
-    save_line_plot(
+    save_rmsf_plot(
         kind_output_dir / "rmsf_ca.png",
-        np.arange(1, len(rmsf) + 1),
-        rmsf * 10.0,
+        residues,
+        rmsf,
         f"Flexibilitat per residu C-α del sistema {system_label}",
-        "Residus C-α",
-        "RMSF (Å)",
     )
 
     hbond_summary = ["Ponts d'hidrogen: omesos"]
@@ -439,7 +472,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         f"Temps final (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final (ns): 0.000000",
         f"RMSD mitja proteina (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitjà proteina (nm): 0.000000",
         f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitjà (nm): 0.000000",
-        f"RMSF CA maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF CA màxim (nm): 0.000000",
+        f"RMSF C-α maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α màxim (nm): 0.000000",
         *hbond_summary,
         *thermo_summary,
     ]

@@ -161,7 +161,7 @@ def write_final_pdb_image(topology, positions, output_path: Path) -> None:
     all_points = []
     if protein_ca:
         xs, ys, zs = zip(*protein_ca)
-        ax.plot(xs, ys, zs, color="#1f77b4", linewidth=1.2, label="Proteina C-alpha")
+        ax.plot(xs, ys, zs, color="#1f77b4", linewidth=1.2, label="Proteina C-α")
         ax.scatter(xs, ys, zs, color="#1f77b4", s=5)
         all_points.extend(protein_ca)
     if holo_atoms:

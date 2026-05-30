@@ -42,7 +42,7 @@ SIMULATION_KINDS = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Calcula RMSD, RMSF CA i radi de gir amb els fitxers OpenMM "
+            "Calcula RMSD, RMSF C-α i radi de gir amb els fitxers OpenMM "
             "de calculs/analisi/data."
         )
     )
@@ -121,7 +121,7 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_dir: Path, repor
     times_ns = frame_times_ns(traj.n_frames, report_interval, timestep_fs)
 
     protein_atoms = select_atoms(traj.topology, "protein", "proteina")
-    ca_atoms = select_atoms(traj.topology, "protein and name CA", "C-alpha")
+    ca_atoms = select_atoms(traj.topology, "protein and name CA", "C-α")
 
     protein_traj = traj.atom_slice(protein_atoms)
     protein_traj.superpose(protein_traj, frame=0)
@@ -151,7 +151,7 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_dir: Path, repor
 
     save_line_plot(run_output_dir / "rmsd.png", times_ns, rmsd, f"{kind.name} {run_dir.name}: RMSD", "Temps (ns)", "RMSD (nm)")
     save_line_plot(run_output_dir / "radius_of_gyration.png", times_ns, rg, f"{kind.name} {run_dir.name}: radi de gir", "Temps (ns)", "Rg (nm)")
-    save_line_plot(run_output_dir / "rmsf_ca.png", np.arange(len(rmsf)), rmsf, f"{kind.name} {run_dir.name}: RMSF CA", "Residus CA", "RMSF (nm)")
+    save_line_plot(run_output_dir / "rmsf_ca.png", np.arange(len(rmsf)), rmsf, f"{kind.name} {run_dir.name}: RMSF C-α", "Residus C-α", "RMSF (nm)")
 
     summary = [
         f"System: {kind.name}",
@@ -162,7 +162,7 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_dir: Path, repor
         f"Temps final trajectoria (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final trajectoria (ns): 0.000000",
         f"RMSD mitja proteina (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitja proteina (nm): 0.000000",
         f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitja (nm): 0.000000",
-        f"RMSF CA maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF CA maxim (nm): 0.000000",
+        f"RMSF C-α maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α maxim (nm): 0.000000",
     ]
     (run_output_dir / "summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
     print(f"Resultats desats a: {run_output_dir}")

@@ -143,8 +143,8 @@ def save_plots(output_dir: Path, times_ns: np.ndarray, series: dict[str, object]
         rmsf = series["rmsf"]
         plt.figure(figsize=(9, 5), dpi=300)
         plt.plot(np.arange(len(rmsf)), rmsf, linewidth=1.4)
-        plt.title("RMSF C-alpha")
-        plt.xlabel("Residus C-alpha")
+        plt.title("RMSF C-α")
+        plt.xlabel("Residus C-α")
         plt.ylabel("RMSF (nm)")
         if len(residues) <= 30:
             plt.xticks(np.arange(len(residues)), residues, rotation=90)
@@ -170,7 +170,7 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_subdir: str, rep
     times_ns = frame_times_ns(traj.n_frames, report_interval, timestep_fs)
 
     protein_atoms = select_atoms(traj.topology, "protein", "proteina")
-    ca_atoms = select_atoms(traj.topology, "protein and name CA", "C-alpha")
+    ca_atoms = select_atoms(traj.topology, "protein and name CA", "C-α")
 
     protein_traj = traj.atom_slice(protein_atoms)
     protein_traj.superpose(protein_traj, frame=0)
@@ -226,7 +226,7 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_subdir: str, rep
         f"Temps final (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final (ns): 0.000000",
         f"RMSD mitja proteina (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitja proteina (nm): 0.000000",
         f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitja (nm): 0.000000",
-        f"RMSF CA maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF CA maxim (nm): 0.000000",
+        f"RMSF C-α maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α maxim (nm): 0.000000",
         f"Ponts d'hidrogen mitjans: {float(np.mean(hbond_counts)):.6f}" if len(hbond_counts) else "Ponts d'hidrogen mitjans: 0.000000",
     ]
     (output_dir / "summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
