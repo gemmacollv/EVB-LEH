@@ -20,6 +20,27 @@ ACTIVE_SITE_RESIDUES = {
     "LEU53", "MET73", "ARG94", "ASP96", "LEU98", "ASP127", "PHE129",
     "LEU199", "MET219", "ARG240", "ASP242", "LEU244", "ASP273", "PHE275",
 }
+ACTIVE_SITE_CONTACT_CUTOFF_NM = 0.45
+DEFAULT_CATALYTIC_DISTANCE_SPECS = [
+    (
+        "HPN_C1_ASP_OD",
+        "resname HPN and name C1",
+        "protein and resname ASP and (name OD1 or name OD2)",
+    ),
+    (
+        "HPN_O1_ARG_NH_NE",
+        "resname HPN and name O1",
+        "protein and resname ARG and (name NH1 or name NH2 or name NE)",
+    ),
+    (
+        "HPN_O1_ASP_OD",
+        "resname HPN and name O1",
+        "protein and resname ASP and (name OD1 or name OD2)",
+    ),
+]
+DEFAULT_ATTACK_ANGLE_SPECS = [
+    ("HPN_N1_C1_O1", "resname HPN and name N1", "resname HPN and name C1", "resname HPN and name O1"),
+]
 
 
 @dataclass(frozen=True)
@@ -84,6 +105,36 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Desa la trajectoria concatenada com joined-apo.dcd/joined-holo.dcd.",
     )
+    parser.add_argument(
+        "--skip-catalytic-figure",
+        action="store_true",
+        help="Omet la figura de distancies catalitiques i contactes lligand-centre actiu.",
+    )
+    parser.add_argument(
+        "--catalytic-distance",
+        action="append",
+        default=None,
+        metavar="NOM::SELECTOR1::SELECTOR2",
+        help="Distancia addicional per a la Figura 8, com distancia minima entre dos selectors MDTraj.",
+    )
+    parser.add_argument(
+        "--attack-angle",
+        action="append",
+        default=None,
+        metavar="NOM::SELECTOR1::SELECTOR2::SELECTOR3",
+        help="Angle addicional per a la Figura 8. El segon selector es pren com a vertex de l angle.",
+    )
+    parser.add_argument(
+        "--no-default-catalytic-metrics",
+        action="store_true",
+        help="No calcula les distancies/angles catalitics per defecte basats en HPN.",
+    )
+    parser.add_argument(
+        "--active-site-contact-cutoff-nm",
+        type=float,
+        default=ACTIVE_SITE_CONTACT_CUTOFF_NM,
+        help="Tall en nm per considerar contacte entre lligand i residus del centre actiu.",
+    )
     return parser.parse_args()
 
 
@@ -147,6 +198,76 @@ def save_rmsf_plot(output_path: Path, residues: list[str], rmsf_nm: np.ndarray, 
     plt.savefig(output_path)
     plt.close()
 
+
+def save_catalytic_preorganization_plot(
+    output_path: Path,
+    times_ns: np.ndarray,
+    distance_series_nm: dict[str, np.ndarray],
+    angle_series_deg: dict[str, np.ndarray],
+) -> None:
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ModuleNotFoundError:
+        print("Matplotlib no esta instal-lat; s\x27escriuen nomes els CSV.")
+        return
+
+    if not distance_series_nm and not angle_series_deg:
+        return
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig, ax_distance = plt.subplots(figsize=(9, 5), dpi=300)
+    for label, values in distance_series_nm.items():
+        ax_distance.plot(times_ns, values, linewidth=1.2, label=label)
+    ax_distance.set_title("Figura 8. Distancies catalitiques i preorganitzacio")
+    ax_distance.set_xlabel("Temps (ns)")
+    ax_distance.set_ylabel("Distancia (nm)")
+    ax_distance.grid(True, linestyle="--", alpha=0.4)
+
+    handles, labels = ax_distance.get_legend_handles_labels()
+    if angle_series_deg:
+        ax_angle = ax_distance.twinx()
+        for label, values in angle_series_deg.items():
+            line = ax_angle.plot(times_ns, values, linewidth=1.0, linestyle=":", label=f"{label} angle")[0]
+            handles.append(line)
+            labels.append(line.get_label())
+        ax_angle.set_ylabel("Angle (graus)")
+
+    if handles:
+        ax_distance.legend(handles, labels, fontsize=7, loc="best")
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def save_contact_bar_plot(output_path: Path, contact_rows: list[list[object]], title: str) -> None:
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ModuleNotFoundError:
+        print("Matplotlib no esta instal-lat; s\x27escriuen nomes els CSV.")
+        return
+
+    if not contact_rows:
+        return
+
+    labels = [str(row[0]) for row in contact_rows]
+    occupancies = [float(row[3]) for row in contact_rows]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.figure(figsize=(9, 5), dpi=300)
+    plt.bar(labels, occupancies, color="tab:green", alpha=0.8)
+    plt.title(title)
+    plt.xlabel("Residus del centre actiu")
+    plt.ylabel("Ocupacio de contacte (%)")
+    plt.xticks(rotation=45, ha="right")
+    plt.grid(True, axis="y", linestyle="--", alpha=0.4)
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
 
 def iter_run_dirs(data_dir: Path, kind_name: str, requested_runs: list[str] | None) -> list[Path]:
     kind_dir = data_dir / kind_name
