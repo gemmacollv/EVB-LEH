@@ -22,20 +22,20 @@ ACTIVE_SITE_RESIDUES = {
 }
 ACTIVE_SITE_CONTACT_CUTOFF_NM = 0.45
 ACTIVE_SITE_DISPLAY_LABELS = {
-    "TYR48": "Tyr53 cadena A",
-    "ASN50": "Asn55 cadena A",
-    "ARG94": "Arg99 cadena A",
-    "ASP96": "Asp101 cadena A",
-    "ASP127": "Asp132 cadena A",
-    "TYR194": "Tyr53 cadena B",
-    "ASN196": "Asn55 cadena B",
-    "ARG240": "Arg99 cadena B",
-    "ASP242": "Asp101 cadena B",
-    "ASP273": "Asp132 cadena B",
+    "TYR48": "Tyr53 A",
+    "ASN50": "Asn55 A",
+    "ARG94": "Arg99 A",
+    "ASP96": "Asp101 A",
+    "ASP127": "Asp132 A",
+    "TYR194": "Tyr53 B",
+    "ASN196": "Asn55 B",
+    "ARG240": "Arg99 B",
+    "ASP242": "Asp101 B",
+    "ASP273": "Asp132 B",
 }
+GENERAL_BASE_ASP_SELECTOR = "protein and resname ASP and (resSeq 127 or resSeq 273)"
 CATALYTIC_TYR_SELECTOR = "protein and resname TYR and (resSeq 48 or resSeq 194)"
 CATALYTIC_ASN_SELECTOR = "protein and resname ASN and (resSeq 50 or resSeq 196)"
-GENERAL_BASE_ASP_SELECTOR = "protein and resname ASP and (resSeq 127 or resSeq 273)"
 DEFAULT_CATALYTIC_DISTANCE_SPECS = [
     (
         "WAT_O_HPN_C1",
@@ -54,6 +54,7 @@ DEFAULT_CATALYTIC_DISTANCE_SPECS = [
     ),
 ]
 NUCLEOPHILIC_ATTACK_ANGLE_LABEL = "ASP132_OD_WAT_O_HPN_C1"
+_NUCLEOPHILIC_WATER_GEOMETRY_CACHE = {}
 
 @dataclass(frozen=True)
 class SimulationKind:
@@ -121,6 +122,11 @@ def parse_args() -> argparse.Namespace:
         "--skip-catalytic-figure",
         action="store_true",
         help="Omet la figura de distancies catalitiques i contactes lligand-centre actiu.",
+    )
+    parser.add_argument(
+        "--only-catalytic-metrics",
+        action="store_true",
+        help="Calcula només les distàncies i l'angle catalítics del sistema holo.",
     )
     parser.add_argument(
         "--catalytic-distance",
@@ -467,10 +473,92 @@ def catalytic_distance_specs(args: argparse.Namespace) -> list[tuple[str, str, s
 
 
 
+def select_nucleophilic_water_geometry(md, traj) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[object]]:
+    cached_geometry = getattr(traj, "_nucleophilic_water_geometry_cache", None)
+    if cached_geometry is not None:
+        return cached_geometry
+
+    water_selector = "water and name O"
+    c1_selector = "resname HPN and (name C1 or name C1x)"
+    asp_selector = f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)"
+    water_atoms = traj.topology.select(water_selector)
+    c1_atoms = traj.topology.select(c1_selector)
+    asp_od_atoms = traj.topology.select(asp_selector)
+    if len(water_atoms) == 0 or len(c1_atoms) == 0 or len(asp_od_atoms) == 0:
+        raise ValueError("Selecció buida per identificar l'aigua nucleòfila.")
+
+    water_c1_pairs = np.array(
+        [(int(water_atom), int(c1_atom)) for water_atom in water_atoms for c1_atom in c1_atoms],
+        dtype=int,
+    )
+    selected_distances = np.empty(traj.n_frames, dtype=float)
+    selected_waters = np.empty(traj.n_frames, dtype=int)
+    selected_c1_atoms = np.empty(traj.n_frames, dtype=int)
+    selected_asp_atoms = np.empty(traj.n_frames, dtype=int)
+    chunk_size = 100
+    n_candidates = min(24, len(water_atoms))
+
+    for start in range(0, traj.n_frames, chunk_size):
+        stop = min(start + chunk_size, traj.n_frames)
+        chunk = traj[start:stop]
+        try:
+            water_c1 = md.compute_distances(chunk, water_c1_pairs, periodic=True)
+        except Exception:
+            water_c1 = md.compute_distances(chunk, water_c1_pairs, periodic=False)
+
+        n_chunk = stop - start
+        water_c1 = water_c1.reshape(n_chunk, len(water_atoms), len(c1_atoms))
+        nearest_c1_positions = np.argmin(water_c1, axis=2)
+        nearest_c1_distances = np.min(water_c1, axis=2)
+        candidate_positions = np.argpartition(nearest_c1_distances, n_candidates - 1, axis=1)[:, :n_candidates]
+
+        for local_frame in range(n_chunk):
+            candidates = candidate_positions[local_frame]
+            candidate_water_atoms = water_atoms[candidates]
+            water_xyz = chunk.xyz[local_frame, candidate_water_atoms, :]
+            asp_xyz = chunk.xyz[local_frame, asp_od_atoms, :]
+            water_asp = np.linalg.norm(water_xyz[:, np.newaxis, :] - asp_xyz[np.newaxis, :, :], axis=2)
+            nearest_asp_positions = np.argmin(water_asp, axis=1)
+            nearest_asp_distances = np.min(water_asp, axis=1)
+            c1_distances = nearest_c1_distances[local_frame, candidates]
+            scores = c1_distances + nearest_asp_distances
+            best_candidate = int(np.argmin(scores))
+            frame_index = start + local_frame
+
+            selected_distances[frame_index] = c1_distances[best_candidate]
+            selected_waters[frame_index] = candidate_water_atoms[best_candidate]
+            selected_c1_atoms[frame_index] = c1_atoms[
+                nearest_c1_positions[local_frame, candidates[best_candidate]]
+            ]
+            selected_asp_atoms[frame_index] = asp_od_atoms[nearest_asp_positions[best_candidate]]
+
+    metadata_row = [
+        "WAT_O_HPN_C1",
+        f"{water_selector}; triada entre les {n_candidates} aigües més properes a C1 i puntuació C1+Asp132 Oδ",
+        c1_selector,
+        len(water_atoms),
+        len(c1_atoms),
+        len(water_c1_pairs),
+    ]
+    result = (selected_distances, selected_waters, selected_c1_atoms, selected_asp_atoms, metadata_row)
+    setattr(traj, "_nucleophilic_water_geometry_cache", result)
+    return result
+
+
 def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[dict[str, np.ndarray], list[list[object]]]:
     distance_series: dict[str, np.ndarray] = {}
     metadata_rows: list[list[object]] = []
     for label, selector_a, selector_b in specs:
+        if label == "WAT_O_HPN_C1":
+            try:
+                distances, _waters, _c1_atoms, _asp_atoms, metadata_row = select_nucleophilic_water_geometry(md, traj)
+            except ValueError as exc:
+                print(f"S'omet distància catalítica {label}: {exc}")
+                continue
+            distance_series[label] = distances
+            metadata_rows.append(metadata_row)
+            continue
+
         atoms_a = traj.topology.select(selector_a)
         atoms_b = traj.topology.select(selector_b)
         if len(atoms_a) == 0 or len(atoms_b) == 0:
@@ -492,33 +580,16 @@ def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[
 
 
 def compute_nucleophilic_attack_angles(md, traj) -> tuple[dict[str, np.ndarray], list[list[object]]]:
-    water_atoms = traj.topology.select("water and name O")
-    c1_atoms = traj.topology.select("resname HPN and (name C1 or name C1x)")
-    asp_od_atoms = traj.topology.select(f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)")
-    if len(water_atoms) == 0 or len(c1_atoms) == 0 or len(asp_od_atoms) == 0:
-        print(f"S'omet angle catalític {NUCLEOPHILIC_ATTACK_ANGLE_LABEL}: selecció buida.")
-        return {}, []
-
-    water_c1_pairs = np.array(
-        [(int(water_atom), int(c1_atom)) for water_atom in water_atoms for c1_atom in c1_atoms],
-        dtype=int,
-    )
     try:
-        water_c1_distances = md.compute_distances(traj, water_c1_pairs, periodic=True)
-    except Exception:
-        water_c1_distances = md.compute_distances(traj, water_c1_pairs, periodic=False)
-
-    nearest_pair_indices = np.argmin(water_c1_distances, axis=1)
-    selected_waters = water_c1_pairs[nearest_pair_indices, 0]
-    selected_c1_atoms = water_c1_pairs[nearest_pair_indices, 1]
+        _distances, selected_waters, selected_c1_atoms, selected_asp_atoms, _metadata = select_nucleophilic_water_geometry(md, traj)
+    except ValueError as exc:
+        print(f"S'omet angle catalític {NUCLEOPHILIC_ATTACK_ANGLE_LABEL}: {exc}")
+        return {}, []
 
     frame_indices = np.arange(traj.n_frames)
     water_xyz = traj.xyz[frame_indices, selected_waters, :]
     c1_xyz = traj.xyz[frame_indices, selected_c1_atoms, :]
-    asp_od_xyz = traj.xyz[:, asp_od_atoms, :]
-    asp_water_distances = np.linalg.norm(asp_od_xyz - water_xyz[:, np.newaxis, :], axis=2)
-    selected_asp_positions = np.argmin(asp_water_distances, axis=1)
-    asp_xyz = asp_od_xyz[frame_indices, selected_asp_positions, :]
+    asp_xyz = traj.xyz[frame_indices, selected_asp_atoms, :]
 
     asp_to_water = asp_xyz - water_xyz
     c1_to_water = c1_xyz - water_xyz
@@ -530,11 +601,11 @@ def compute_nucleophilic_attack_angles(md, traj) -> tuple[dict[str, np.ndarray],
     metadata_rows = [[
         NUCLEOPHILIC_ATTACK_ANGLE_LABEL,
         f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)",
-        "water and name O",
+        "water and name O; triada per proximitat conjunta a C1 i Asp132 Oδ",
         "resname HPN and (name C1 or name C1x)",
-        len(asp_od_atoms),
-        len(water_atoms),
-        len(c1_atoms),
+        len(np.unique(selected_asp_atoms)),
+        len(np.unique(selected_waters)),
+        len(np.unique(selected_c1_atoms)),
     ]]
     return {NUCLEOPHILIC_ATTACK_ANGLE_LABEL: angles_deg}, metadata_rows
 
@@ -657,6 +728,22 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
     system_label = kind.name.upper()
 
     write_rows(kind_output_dir / "frame_map.csv", ["joined_frame", "run", "frame_in_run"], frame_map)
+
+    if args.only_catalytic_metrics:
+        if kind.name != "holo":
+            print("--only-catalytic-metrics només aplica al sistema holo; s'omet aquest sistema.")
+            return False
+        catalytic_summary = write_catalytic_metrics(md, joined, kind, kind_output_dir, times_ns, args)
+        summary = [
+            f"System: {kind.name}",
+            f"Runs units: {', '.join(run_dir.name for run_dir in run_dirs)}",
+            f"Frames totals: {joined.n_frames}",
+            f"Temps final concatenat (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final concatenat (ns): 0.000000",
+            *catalytic_summary,
+        ]
+        (kind_output_dir / "summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
+        print(f"Mètriques catalítiques desades a: {kind_output_dir}")
+        return True
 
     if args.only_ligand_hbonds:
         if kind.name != "holo":
