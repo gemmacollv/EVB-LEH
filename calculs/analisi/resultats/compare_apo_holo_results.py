@@ -11,6 +11,18 @@ import numpy as np
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_INPUT_DIR = SCRIPT_DIR / "joined"
 DEFAULT_OUTPUT_DIR = SCRIPT_DIR / "comparacio_apo_holo"
+ACTIVE_SITE_DISPLAY_LABELS = {
+    "TYR48": "Tyr53 A",
+    "ASN50": "Asn55 A",
+    "ARG94": "Arg99 A",
+    "ASP96": "Asp101 A",
+    "ASP127": "Asp132 A",
+    "TYR194": "Tyr53 B",
+    "ASN196": "Asn55 B",
+    "ARG240": "Arg99 B",
+    "ASP242": "Asp101 B",
+    "ASP273": "Asp132 B",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -112,7 +124,13 @@ def save_overlay_plot(
     plt.close()
 
 
-def save_rmsf_plot(output_path: Path, apo: np.ndarray, holo: np.ndarray) -> None:
+def save_rmsf_plot(
+    output_path: Path,
+    apo_residues: list[str],
+    apo: np.ndarray,
+    holo_residues: list[str],
+    holo: np.ndarray,
+) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -120,19 +138,53 @@ def save_rmsf_plot(output_path: Path, apo: np.ndarray, holo: np.ndarray) -> None
 
     n_points = min(len(apo), len(holo))
     x_values = np.arange(1, n_points + 1)
+    active_points = [
+        (idx + 1, residue, ACTIVE_SITE_DISPLAY_LABELS[residue])
+        for idx, residue in enumerate(holo_residues[:n_points])
+        if residue in ACTIVE_SITE_DISPLAY_LABELS
+    ]
+    if not active_points:
+        active_points = [
+            (idx + 1, residue, ACTIVE_SITE_DISPLAY_LABELS[residue])
+            for idx, residue in enumerate(apo_residues[:n_points])
+            if residue in ACTIVE_SITE_DISPLAY_LABELS
+        ]
+    colors = plt.get_cmap("tab10").colors
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(9, 5), dpi=300)
-    plt.plot(x_values, apo[:n_points], label="APO", linewidth=1.4)
-    plt.plot(x_values, holo[:n_points], label="HOLO", linewidth=1.4)
-    plt.title("APO vs HOLO: flexibilitat C-α")
-    plt.xlabel("Residus Cα")
-    plt.ylabel("Distància (nm)")
-    plt.grid(True, linestyle="--", alpha=0.4)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+    fig, ax = plt.subplots(figsize=(10.5, 5.5), dpi=300)
+    ax.plot(x_values, apo[:n_points], label="APO", linewidth=1.4)
+    ax.plot(x_values, holo[:n_points], label="HOLO", linewidth=1.4)
+    for color_idx, (position, _residue, label) in enumerate(active_points):
+        color = colors[color_idx % len(colors)]
+        y_value = max(apo[position - 1], holo[position - 1])
+        ax.axvline(position, color=color, linewidth=0.8, alpha=0.35)
+        ax.scatter(
+            [position, position],
+            [apo[position - 1], holo[position - 1]],
+            color=[color],
+            s=16,
+            zorder=4,
+        )
+        ax.annotate(
+            label,
+            xy=(position, y_value),
+            xytext=(0, 8 + (color_idx % 2) * 7),
+            textcoords="offset points",
+            rotation=70,
+            ha="left",
+            va="bottom",
+            fontsize=6.5,
+            color=color,
+        )
+    ax.set_title("APO vs HOLO: flexibilitat C-α")
+    ax.set_xlabel("Residus C-α")
+    ax.set_ylabel("Distància (nm)")
+    ax.grid(True, linestyle="--", alpha=0.4)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
 
 
 def stats(values: np.ndarray) -> tuple[float, float, float]:
@@ -195,7 +247,7 @@ def main() -> None:
 
     apo_residues, apo_rmsf = read_rmsf(apo_dir / "rmsf_ca.csv")
     holo_residues, holo_rmsf = read_rmsf(holo_dir / "rmsf_ca.csv")
-    save_rmsf_plot(output_dir / "rmsf_apo_holo.png", apo_rmsf, holo_rmsf)
+    save_rmsf_plot(output_dir / "rmsf_apo_holo.png", apo_residues, apo_rmsf, holo_residues, holo_rmsf)
 
     n_residues = min(len(apo_rmsf), len(holo_rmsf))
     rmsf_diff = holo_rmsf[:n_residues] - apo_rmsf[:n_residues]

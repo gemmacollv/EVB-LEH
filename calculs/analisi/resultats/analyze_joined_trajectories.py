@@ -190,37 +190,14 @@ def save_rmsf_plot(output_path: Path, residues: list[str], rmsf_nm: np.ndarray, 
         return
 
     x_values = np.arange(1, len(rmsf_nm) + 1)
-    active_points = [
-        (idx + 1, residue, ACTIVE_SITE_DISPLAY_LABELS[residue])
-        for idx, residue in enumerate(residues)
-        if residue in ACTIVE_SITE_DISPLAY_LABELS
-    ]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(11, 5.5), dpi=300)
-    plt.plot(x_values, rmsf_nm, linewidth=1.4, label="C-α")
-    for position, _residue, label in active_points:
-        plt.axvline(position, color="tab:red", linewidth=0.7, alpha=0.35)
-        plt.annotate(
-            label,
-            xy=(position, rmsf_nm[position - 1]),
-            xytext=(0, 8),
-            textcoords="offset points",
-            rotation=70,
-            ha="left",
-            va="bottom",
-            fontsize=6.5,
-            color="tab:red",
-        )
-    if active_points:
-        positions = np.array([position for position, _residue, _label in active_points])
-        plt.scatter(positions, rmsf_nm[positions - 1], color="tab:red", s=14, label="Centre actiu")
+    plt.plot(x_values, rmsf_nm, linewidth=1.4)
     plt.title(title)
     plt.xlabel("Residus C-α")
     plt.ylabel("Distància (nm)")
     plt.grid(True, linestyle="--", alpha=0.4)
-    if active_points:
-        plt.legend(fontsize=8)
     plt.tight_layout()
     plt.savefig(output_path)
     plt.close()
