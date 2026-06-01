@@ -6,11 +6,12 @@ Temps final (ns): 145.000000
 RMSD mitjà proteïna (nm): 0.195432
 Radi de gir mitjà (nm): 1.855195
 RMSF C-α màxim (nm): 0.338439
-Ponts d'hidrogen: omesos
-Distància catalítica mitjana WAT_O_HPN_C1 (nm): 0.397053
+Ponts d'hidrogen mitjans: 200.918919
+Ponts d'hidrogen proteïna-lligand mitjans (HPN): 4.710149
+Distància catalítica mitjana WAT_O_HPN_C1 (nm): 0.381911
 Distància catalítica mitjana HPN_O1_TYR53_OH (nm): 0.287879
 Distància catalítica mitjana HPN_O1_ASN55_ND2 (nm): 0.312210
-Angle d'atac nucleòfil mitjà ASP132_OD_WAT_O_HPN_C1 (graus): 63.159119
+Angle d'atac nucleòfil mitjà ASP132_OD_WAT_O_HPN_C1 (graus): 83.888625
 Residus del centre actiu en contacte: 10
 Thermo frames: 3626
 Temperatura mitjana (K): 301.762388

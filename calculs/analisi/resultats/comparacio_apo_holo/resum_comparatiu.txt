@@ -9,14 +9,14 @@ Grafics generats:
 - ponts_hidrogen_apo_holo.png
 
 Valors del resum original:
-Angle d'atac nucleòfil mitjà ASP132_OD_WAT_O_HPN_C1 (graus): APO=n/a | HOLO=63.159119
+Angle d'atac nucleòfil mitjà ASP132_OD_WAT_O_HPN_C1 (graus): APO=n/a | HOLO=83.888625
 Distància catalítica mitjana HPN_O1_ASN55_ND2 (nm): APO=n/a | HOLO=0.312210
 Distància catalítica mitjana HPN_O1_TYR53_OH (nm): APO=n/a | HOLO=0.287879
-Distància catalítica mitjana WAT_O_HPN_C1 (nm): APO=n/a | HOLO=0.397053
+Distància catalítica mitjana WAT_O_HPN_C1 (nm): APO=n/a | HOLO=0.381911
 Energia potencial mitjana (kJ/mol): APO=-400293.099943 | HOLO=-404473.859542
 Frames totals: APO=3407 | HOLO=3626
-Ponts d'hidrogen: APO=n/a | HOLO=omesos
-Ponts d'hidrogen mitjans: APO=197.041679 | HOLO=n/a
+Ponts d'hidrogen mitjans: APO=197.041679 | HOLO=200.918919
+Ponts d'hidrogen proteïna-lligand mitjans (HPN): APO=n/a | HOLO=4.710149
 RMSD mitjà proteïna (nm): APO=0.206054 | HOLO=0.195432
 RMSF C-α màxim (nm): APO=0.455030 | HOLO=0.338439
 Radi de gir mitjà (nm): APO=1.853280 | HOLO=1.855195

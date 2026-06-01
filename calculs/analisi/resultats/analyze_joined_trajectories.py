@@ -54,6 +54,8 @@ DEFAULT_CATALYTIC_DISTANCE_SPECS = [
     ),
 ]
 NUCLEOPHILIC_ATTACK_ANGLE_LABEL = "ASP132_OD_WAT_O_HPN_C1"
+NUCLEOPHILIC_WATER_C1_CUTOFF_NM = 0.65
+NUCLEOPHILIC_WATER_ASP_CUTOFF_NM = 0.45
 _NUCLEOPHILIC_WATER_GEOMETRY_CACHE = {}
 
 @dataclass(frozen=True)
@@ -458,17 +460,18 @@ def select_nucleophilic_water_geometry(md, traj) -> tuple[np.ndarray, np.ndarray
     water_selector = "water and name O"
     c1_selector = "resname HPN and (name C1 or name C1x)"
     asp_selector = f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)"
-    candidate_cutoff_nm = 0.65
+    c1_cutoff_nm = NUCLEOPHILIC_WATER_C1_CUTOFF_NM
+    asp_cutoff_nm = NUCLEOPHILIC_WATER_ASP_CUTOFF_NM
     water_atoms = traj.topology.select(water_selector)
     c1_atoms = traj.topology.select(c1_selector)
     asp_od_atoms = traj.topology.select(asp_selector)
     if len(water_atoms) == 0 or len(c1_atoms) == 0 or len(asp_od_atoms) == 0:
         raise ValueError("Selecció buida per identificar l'aigua nucleòfila.")
 
-    selected_distances = np.empty(traj.n_frames, dtype=float)
-    selected_waters = np.empty(traj.n_frames, dtype=int)
-    selected_c1_atoms = np.empty(traj.n_frames, dtype=int)
-    selected_asp_atoms = np.empty(traj.n_frames, dtype=int)
+    selected_distances = np.full(traj.n_frames, np.nan, dtype=float)
+    selected_waters = np.full(traj.n_frames, -1, dtype=int)
+    selected_c1_atoms = np.full(traj.n_frames, -1, dtype=int)
+    selected_asp_atoms = np.full(traj.n_frames, -1, dtype=int)
     chunk_size = 100
 
     for start in range(0, traj.n_frames, chunk_size):
@@ -477,7 +480,7 @@ def select_nucleophilic_water_geometry(md, traj) -> tuple[np.ndarray, np.ndarray
         try:
             nearby_waters_by_frame = md.compute_neighbors(
                 chunk,
-                candidate_cutoff_nm,
+                c1_cutoff_nm,
                 query_indices=c1_atoms,
                 haystack_indices=water_atoms,
                 periodic=True,
@@ -485,7 +488,7 @@ def select_nucleophilic_water_geometry(md, traj) -> tuple[np.ndarray, np.ndarray
         except Exception:
             nearby_waters_by_frame = md.compute_neighbors(
                 chunk,
-                candidate_cutoff_nm,
+                c1_cutoff_nm,
                 query_indices=c1_atoms,
                 haystack_indices=water_atoms,
                 periodic=False,
@@ -495,7 +498,7 @@ def select_nucleophilic_water_geometry(md, traj) -> tuple[np.ndarray, np.ndarray
             frame_index = start + local_frame
             candidates = np.asarray(candidate_waters, dtype=int)
             if len(candidates) == 0:
-                candidates = water_atoms
+                continue
 
             frame_xyz = chunk.xyz[local_frame]
             candidate_xyz = frame_xyz[candidates]
@@ -508,24 +511,42 @@ def select_nucleophilic_water_geometry(md, traj) -> tuple[np.ndarray, np.ndarray
             nearest_asp_positions = np.argmin(water_asp, axis=1)
             nearest_c1_distances = np.min(water_c1, axis=1)
             nearest_asp_distances = np.min(water_asp, axis=1)
-            best_candidate_position = int(np.argmin(nearest_c1_distances + nearest_asp_distances))
+            nucleophilic_mask = (nearest_c1_distances <= c1_cutoff_nm) & (nearest_asp_distances <= asp_cutoff_nm)
+            if not np.any(nucleophilic_mask):
+                continue
+
+            candidate_scores = nearest_c1_distances + nearest_asp_distances
+            candidate_scores = np.where(nucleophilic_mask, candidate_scores, np.inf)
+            best_candidate_position = int(np.argmin(candidate_scores))
 
             selected_distances[frame_index] = nearest_c1_distances[best_candidate_position]
             selected_waters[frame_index] = candidates[best_candidate_position]
             selected_c1_atoms[frame_index] = c1_atoms[nearest_c1_positions[best_candidate_position]]
             selected_asp_atoms[frame_index] = asp_od_atoms[nearest_asp_positions[best_candidate_position]]
 
+    valid_frames = int(np.sum(selected_waters >= 0))
     metadata_row = [
         "WAT_O_HPN_C1",
-        f"{water_selector}; candidates a <{candidate_cutoff_nm:.2f} nm de C1 i triades per proximitat conjunta a C1 i Asp132 Oδ",
+        (
+            f"{water_selector}; només aigües a <= {c1_cutoff_nm:.2f} nm de C1 "
+            f"i <= {asp_cutoff_nm:.2f} nm d'Asp132 Oδ"
+        ),
         c1_selector,
-        len(water_atoms),
+        valid_frames,
         len(c1_atoms),
-        "variable",
+        f"frames_valids={valid_frames}/{traj.n_frames}",
     ]
     result = (selected_distances, selected_waters, selected_c1_atoms, selected_asp_atoms, metadata_row)
     _NUCLEOPHILIC_WATER_GEOMETRY_CACHE[cache_key] = result
     return result
+
+
+def finite_summary(values: np.ndarray) -> tuple[float, float, float] | None:
+    finite_values = values[np.isfinite(values)]
+    if len(finite_values) == 0:
+        return None
+    return float(np.mean(finite_values)), float(np.min(finite_values)), float(np.max(finite_values))
+
 
 def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[dict[str, np.ndarray], list[list[object]]]:
     distance_series: dict[str, np.ndarray] = {}
@@ -568,26 +589,29 @@ def compute_nucleophilic_attack_angles(md, traj) -> tuple[dict[str, np.ndarray],
         print(f"S'omet angle catalític {NUCLEOPHILIC_ATTACK_ANGLE_LABEL}: {exc}")
         return {}, []
 
-    frame_indices = np.arange(traj.n_frames)
-    water_xyz = traj.xyz[frame_indices, selected_waters, :]
-    c1_xyz = traj.xyz[frame_indices, selected_c1_atoms, :]
-    asp_xyz = traj.xyz[frame_indices, selected_asp_atoms, :]
+    angles_deg = np.full(traj.n_frames, np.nan, dtype=float)
+    valid_frames = (selected_waters >= 0) & (selected_c1_atoms >= 0) & (selected_asp_atoms >= 0)
+    frame_indices = np.flatnonzero(valid_frames)
+    if len(frame_indices) > 0:
+        water_xyz = traj.xyz[frame_indices, selected_waters[valid_frames], :]
+        c1_xyz = traj.xyz[frame_indices, selected_c1_atoms[valid_frames], :]
+        asp_xyz = traj.xyz[frame_indices, selected_asp_atoms[valid_frames], :]
 
-    asp_to_water = asp_xyz - water_xyz
-    c1_to_water = c1_xyz - water_xyz
-    dot_products = np.sum(asp_to_water * c1_to_water, axis=1)
-    norms = np.linalg.norm(asp_to_water, axis=1) * np.linalg.norm(c1_to_water, axis=1)
-    cosines = np.divide(dot_products, norms, out=np.full_like(dot_products, np.nan), where=norms > 0.0)
-    angles_deg = np.degrees(np.arccos(np.clip(cosines, -1.0, 1.0)))
+        asp_to_water = asp_xyz - water_xyz
+        c1_to_water = c1_xyz - water_xyz
+        dot_products = np.sum(asp_to_water * c1_to_water, axis=1)
+        norms = np.linalg.norm(asp_to_water, axis=1) * np.linalg.norm(c1_to_water, axis=1)
+        cosines = np.divide(dot_products, norms, out=np.full_like(dot_products, np.nan), where=norms > 0.0)
+        angles_deg[frame_indices] = np.degrees(np.arccos(np.clip(cosines, -1.0, 1.0)))
 
     metadata_rows = [[
         NUCLEOPHILIC_ATTACK_ANGLE_LABEL,
         f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)",
         "water and name O; triada per proximitat conjunta a C1 i Asp132 Oδ",
         "resname HPN and (name C1 or name C1x)",
-        len(np.unique(selected_asp_atoms)),
-        len(np.unique(selected_waters)),
-        len(np.unique(selected_c1_atoms)),
+        len(np.unique(selected_asp_atoms[selected_asp_atoms >= 0])),
+        len(np.unique(selected_waters[selected_waters >= 0])),
+        len(np.unique(selected_c1_atoms[selected_c1_atoms >= 0])),
     ]]
     return {NUCLEOPHILIC_ATTACK_ANGLE_LABEL: angles_deg}, metadata_rows
 
@@ -646,12 +670,21 @@ def write_catalytic_metrics(md, joined, kind: SimulationKind, kind_output_dir: P
             ["frame", "time_ns", *[f"{label}_nm" for label in labels]],
             [[idx, time_ns, *[distance_series[label][idx] for label in labels]] for idx, time_ns in enumerate(times_ns)],
         )
+        distance_summary_rows = []
+        for label, values in distance_series.items():
+            stats = finite_summary(values)
+            if stats is None:
+                distance_summary_rows.append([label, np.nan, np.nan, np.nan])
+                summary.append(f"Distància catalítica mitjana {label} (nm): n/a")
+            else:
+                mean_value, min_value, max_value = stats
+                distance_summary_rows.append([label, mean_value, min_value, max_value])
+                summary.append(f"Distància catalítica mitjana {label} (nm): {mean_value:.6f}")
         write_rows(
             kind_output_dir / "catalytic_atom_distance_summary.csv",
             ["metric", "mean_nm", "min_nm", "max_nm"],
-            [[label, float(np.mean(values)), float(np.min(values)), float(np.max(values))] for label, values in distance_series.items()],
+            distance_summary_rows,
         )
-        summary.extend(f"Distància catalítica mitjana {label} (nm): {float(np.mean(values)):.6f}" for label, values in distance_series.items())
     if metadata_rows:
         write_rows(
             kind_output_dir / "catalytic_atom_distance_selections.csv",
@@ -667,12 +700,21 @@ def write_catalytic_metrics(md, joined, kind: SimulationKind, kind_output_dir: P
             ["frame", "time_ns", *[f"{label}_deg" for label in labels]],
             [[idx, time_ns, *[angle_series[label][idx] for label in labels]] for idx, time_ns in enumerate(times_ns)],
         )
+        angle_summary_rows = []
+        for label, values in angle_series.items():
+            stats = finite_summary(values)
+            if stats is None:
+                angle_summary_rows.append([label, np.nan, np.nan, np.nan])
+                summary.append(f"Angle d'atac nucleòfil mitjà {label} (graus): n/a")
+            else:
+                mean_value, min_value, max_value = stats
+                angle_summary_rows.append([label, mean_value, min_value, max_value])
+                summary.append(f"Angle d'atac nucleòfil mitjà {label} (graus): {mean_value:.6f}")
         write_rows(
             kind_output_dir / "catalytic_attack_angle_summary.csv",
             ["metric", "mean_deg", "min_deg", "max_deg"],
-            [[label, float(np.mean(values)), float(np.min(values)), float(np.max(values))] for label, values in angle_series.items()],
+            angle_summary_rows,
         )
-        summary.extend(f"Angle d'atac nucleòfil mitjà {label} (graus): {float(np.mean(values)):.6f}" for label, values in angle_series.items())
     if angle_metadata_rows:
         write_rows(
             kind_output_dir / "catalytic_attack_angle_selections.csv",
