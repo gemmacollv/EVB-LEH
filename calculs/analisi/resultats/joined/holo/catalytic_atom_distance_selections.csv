@@ -1,4 +1,4 @@
 metric,selector_1,selector_2,n_atoms_1,n_atoms_2,n_pairs
-HPN_C1_ASP_OD,resname HPN and (name C1 or name C1x),protein and resname ASP and (name OD1 or name OD2),2,44,88
-HPN_O1_ARG_NH_NE,resname HPN and (name O1 or name O1x),protein and resname ARG and (name NH1 or name NH2 or name NE),2,42,84
-HPN_O1_ASP_OD,resname HPN and (name O1 or name O1x),protein and resname ASP and (name OD1 or name OD2),2,44,88
+WAT_O_HPN_C1,water and name O,resname HPN and (name C1 or name C1x),8636,2,17272
+HPN_O1_TYR53_OH,resname HPN and (name O1 or name O1x),protein and resname TYR and (resSeq 48 or resSeq 194) and name OH,2,2,4
+HPN_O1_ASN55_ND2,resname HPN and (name O1 or name O1x),protein and resname ASN and (resSeq 50 or resSeq 196) and name ND2,2,2,4

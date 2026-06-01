@@ -17,29 +17,37 @@ DEFAULT_SETUP_DIR = PROJECT_ROOT / "calculs" / "prepared pdbs" / "02_openmm_md_s
 DEFAULT_REPORT_INTERVAL = 10000
 DEFAULT_TIMESTEP_FS = 4.0
 ACTIVE_SITE_RESIDUES = {
-    "LEU53", "MET73", "ARG94", "ASP96", "LEU98", "ASP127", "PHE129",
-    "LEU199", "MET219", "ARG240", "ASP242", "LEU244", "ASP273", "PHE275",
+    "TYR48", "ASN50", "ARG94", "ASP96", "ASP127",
+    "TYR194", "ASN196", "ARG240", "ASP242", "ASP273",
 }
 ACTIVE_SITE_CONTACT_CUTOFF_NM = 0.45
+CATALYTIC_TYR_SELECTOR = "protein and resname TYR and (resSeq 48 or resSeq 194)"
+CATALYTIC_ASN_SELECTOR = "protein and resname ASN and (resSeq 50 or resSeq 196)"
+GENERAL_BASE_ASP_SELECTOR = "protein and resname ASP and (resSeq 127 or resSeq 273)"
 DEFAULT_CATALYTIC_DISTANCE_SPECS = [
     (
-        "HPN_C1_ASP_OD",
+        "WAT_O_HPN_C1",
+        "water and name O",
         "resname HPN and (name C1 or name C1x)",
-        "protein and resname ASP and (name OD1 or name OD2)",
     ),
     (
-        "HPN_O1_ARG_NH_NE",
+        "HPN_O1_TYR53_OH",
         "resname HPN and (name O1 or name O1x)",
-        "protein and resname ARG and (name NH1 or name NH2 or name NE)",
+        f"{CATALYTIC_TYR_SELECTOR} and name OH",
     ),
     (
-        "HPN_O1_ASP_OD",
+        "HPN_O1_ASN55_ND2",
         "resname HPN and (name O1 or name O1x)",
-        "protein and resname ASP and (name OD1 or name OD2)",
+        f"{CATALYTIC_ASN_SELECTOR} and name ND2",
     ),
 ]
 DEFAULT_ATTACK_ANGLE_SPECS = [
-    ("HPN_N1_C1_O1", "resname HPN and (name N1 or name N1x)", "resname HPN and (name C1 or name C1x)", "resname HPN and (name O1 or name O1x)"),
+    (
+        "ASP132_OD_WAT_O_HPN_C1",
+        f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)",
+        "water and name O",
+        "resname HPN and (name C1 or name C1x)",
+    ),
 ]
 
 
@@ -487,7 +495,17 @@ def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[
     return distance_series, metadata_rows
 
 
-def compute_ligand_internal_angles(md, traj, specs: list[tuple[str, str, str, str]]) -> dict[str, np.ndarray]:
+def angle_degrees(point_a: np.ndarray, point_b: np.ndarray, point_c: np.ndarray) -> float:
+    vector_a = point_a - point_b
+    vector_c = point_c - point_b
+    norm_product = np.linalg.norm(vector_a) * np.linalg.norm(vector_c)
+    if norm_product == 0.0:
+        return float("nan")
+    cosine = np.dot(vector_a, vector_c) / norm_product
+    return float(np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0))))
+
+
+def compute_attack_angles(md, traj, specs: list[tuple[str, str, str, str]]) -> dict[str, np.ndarray]:
     angle_series: dict[str, np.ndarray] = {}
     for label, selector_a, selector_b, selector_c in specs:
         atoms_a = traj.topology.select(selector_a)
@@ -497,22 +515,18 @@ def compute_ligand_internal_angles(md, traj, specs: list[tuple[str, str, str, st
             print(f"S'omet angle catalitic {label}: seleccio buida.")
             continue
 
-        triples = []
-        for atom_b in atoms_b:
-            residue = traj.topology.atom(int(atom_b)).residue
-            residue_atoms = {atom.index for atom in residue.atoms}
-            local_a = [int(atom_a) for atom_a in atoms_a if int(atom_a) in residue_atoms]
-            local_c = [int(atom_c) for atom_c in atoms_c if int(atom_c) in residue_atoms]
-            triples.extend((atom_a, int(atom_b), atom_c) for atom_a in local_a for atom_c in local_c if atom_a != atom_b != atom_c)
-        if not triples:
-            print(f"S'omet angle catalitic {label}: no hi ha triples intramoleculars valids.")
-            continue
-
-        try:
-            angles = md.compute_angles(traj, np.array(triples, dtype=int), periodic=True)
-        except Exception:
-            angles = md.compute_angles(traj, np.array(triples, dtype=int), periodic=False)
-        angle_series[label] = np.degrees(np.mean(angles, axis=1))
+        values = []
+        for xyz in traj.xyz:
+            coords_a = xyz[atoms_a]
+            coords_b = xyz[atoms_b]
+            coords_c = xyz[atoms_c]
+            b_c_distances = np.linalg.norm(coords_b[:, None, :] - coords_c[None, :, :], axis=2)
+            b_index, c_index = np.unravel_index(np.argmin(b_c_distances), b_c_distances.shape)
+            selected_b = coords_b[b_index]
+            selected_c = coords_c[c_index]
+            a_index = int(np.argmin(np.linalg.norm(coords_a - selected_b, axis=1)))
+            values.append(angle_degrees(coords_a[a_index], selected_b, selected_c))
+        angle_series[label] = np.array(values, dtype=float)
     return angle_series
 
 
@@ -561,7 +575,7 @@ def write_catalytic_metrics(md, joined, kind: SimulationKind, kind_output_dir: P
         return []
 
     distance_series, metadata_rows = compute_min_distances(md, joined, catalytic_distance_specs(args))
-    angle_series = compute_ligand_internal_angles(md, joined, attack_angle_specs(args))
+    angle_series = compute_attack_angles(md, joined, attack_angle_specs(args))
     summary: list[str] = []
 
     if distance_series:
