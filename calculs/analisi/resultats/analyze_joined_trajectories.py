@@ -24,22 +24,22 @@ ACTIVE_SITE_CONTACT_CUTOFF_NM = 0.45
 DEFAULT_CATALYTIC_DISTANCE_SPECS = [
     (
         "HPN_C1_ASP_OD",
-        "resname HPN and name C1",
+        "resname HPN and (name C1 or name C1x)",
         "protein and resname ASP and (name OD1 or name OD2)",
     ),
     (
         "HPN_O1_ARG_NH_NE",
-        "resname HPN and name O1",
+        "resname HPN and (name O1 or name O1x)",
         "protein and resname ARG and (name NH1 or name NH2 or name NE)",
     ),
     (
         "HPN_O1_ASP_OD",
-        "resname HPN and name O1",
+        "resname HPN and (name O1 or name O1x)",
         "protein and resname ASP and (name OD1 or name OD2)",
     ),
 ]
 DEFAULT_ATTACK_ANGLE_SPECS = [
-    ("HPN_N1_C1_O1", "resname HPN and name N1", "resname HPN and name C1", "resname HPN and name O1"),
+    ("HPN_N1_C1_O1", "resname HPN and (name N1 or name N1x)", "resname HPN and (name C1 or name C1x)", "resname HPN and (name O1 or name O1x)"),
 ]
 
 
