@@ -221,9 +221,9 @@ def save_catalytic_preorganization_plot(
     fig, ax_distance = plt.subplots(figsize=(9, 5), dpi=300)
     for label, values in distance_series_nm.items():
         ax_distance.plot(times_ns, values, linewidth=1.2, label=label)
-    ax_distance.set_title("Figura 8. Distancies catalitiques")
+    ax_distance.set_title("Distàncies catalítiques")
     ax_distance.set_xlabel("Temps (ns)")
-    ax_distance.set_ylabel("Distancia (nm)")
+    ax_distance.set_ylabel("Distància (nm)")
     ax_distance.grid(True, linestyle="--", alpha=0.4)
 
     handles, labels = ax_distance.get_legend_handles_labels()
@@ -438,6 +438,173 @@ def compute_ligand_hbond_counts(md, traj, ligand_resname: str) -> np.ndarray:
     return np.sum(present, axis=1).astype(int)
 
 
+
+def parse_metric_spec(raw_spec: str, expected_parts: int, option_name: str) -> tuple[str, ...]:
+    parts = tuple(part.strip() for part in raw_spec.split("::"))
+    if len(parts) != expected_parts or any(not part for part in parts):
+        raise ValueError(f"Format invalid per {option_name}: {raw_spec}")
+    return parts
+
+
+def catalytic_distance_specs(args: argparse.Namespace) -> list[tuple[str, str, str]]:
+    specs: list[tuple[str, str, str]] = []
+    if not args.no_default_catalytic_metrics:
+        specs.extend(DEFAULT_CATALYTIC_DISTANCE_SPECS)
+    for raw_spec in args.catalytic_distance or []:
+        specs.append(parse_metric_spec(raw_spec, 3, "--catalytic-distance"))
+    return specs
+
+
+def attack_angle_specs(args: argparse.Namespace) -> list[tuple[str, str, str, str]]:
+    specs: list[tuple[str, str, str, str]] = []
+    if not args.no_default_catalytic_metrics:
+        specs.extend(DEFAULT_ATTACK_ANGLE_SPECS)
+    for raw_spec in args.attack_angle or []:
+        specs.append(parse_metric_spec(raw_spec, 4, "--attack-angle"))
+    return specs
+
+
+def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[dict[str, np.ndarray], list[list[object]]]:
+    distance_series: dict[str, np.ndarray] = {}
+    metadata_rows: list[list[object]] = []
+    for label, selector_a, selector_b in specs:
+        atoms_a = traj.topology.select(selector_a)
+        atoms_b = traj.topology.select(selector_b)
+        if len(atoms_a) == 0 or len(atoms_b) == 0:
+            print(f"S'omet distancia catalitica {label}: seleccio buida.")
+            continue
+        pairs = np.array([(int(atom_a), int(atom_b)) for atom_a in atoms_a for atom_b in atoms_b if atom_a != atom_b], dtype=int)
+        if len(pairs) == 0:
+            print(f"S'omet distancia catalitica {label}: no hi ha parelles d'atoms valides.")
+            continue
+        try:
+            distances = md.compute_distances(traj, pairs, periodic=True)
+        except Exception:
+            distances = md.compute_distances(traj, pairs, periodic=False)
+        min_distances = np.min(distances, axis=1)
+        distance_series[label] = min_distances
+        metadata_rows.append([label, selector_a, selector_b, len(atoms_a), len(atoms_b), len(pairs)])
+    return distance_series, metadata_rows
+
+
+def compute_ligand_internal_angles(md, traj, specs: list[tuple[str, str, str, str]]) -> dict[str, np.ndarray]:
+    angle_series: dict[str, np.ndarray] = {}
+    for label, selector_a, selector_b, selector_c in specs:
+        atoms_a = traj.topology.select(selector_a)
+        atoms_b = traj.topology.select(selector_b)
+        atoms_c = traj.topology.select(selector_c)
+        if len(atoms_a) == 0 or len(atoms_b) == 0 or len(atoms_c) == 0:
+            print(f"S'omet angle catalitic {label}: seleccio buida.")
+            continue
+
+        triples = []
+        for atom_b in atoms_b:
+            residue = traj.topology.atom(int(atom_b)).residue
+            residue_atoms = {atom.index for atom in residue.atoms}
+            local_a = [int(atom_a) for atom_a in atoms_a if int(atom_a) in residue_atoms]
+            local_c = [int(atom_c) for atom_c in atoms_c if int(atom_c) in residue_atoms]
+            triples.extend((atom_a, int(atom_b), atom_c) for atom_a in local_a for atom_c in local_c if atom_a != atom_b != atom_c)
+        if not triples:
+            print(f"S'omet angle catalitic {label}: no hi ha triples intramoleculars valids.")
+            continue
+
+        try:
+            angles = md.compute_angles(traj, np.array(triples, dtype=int), periodic=True)
+        except Exception:
+            angles = md.compute_angles(traj, np.array(triples, dtype=int), periodic=False)
+        angle_series[label] = np.degrees(np.mean(angles, axis=1))
+    return angle_series
+
+
+def residue_label(residue) -> str:
+    chain = getattr(residue.chain, "chain_id", None) or getattr(residue.chain, "id", "") or "?"
+    return f"{residue.name}{residue.resSeq}:{chain}"
+
+
+def active_site_residue_atoms(topology) -> dict[str, list[int]]:
+    residues: dict[str, list[int]] = {}
+    active_labels = {label.upper() for label in ACTIVE_SITE_RESIDUES}
+    for residue in topology.residues:
+        residue_key = f"{residue.name}{residue.resSeq}".upper()
+        if residue_key in active_labels:
+            residues[residue_label(residue)] = [atom.index for atom in residue.atoms]
+    return residues
+
+
+def compute_active_site_contacts(md, traj, ligand_resname: str, cutoff_nm: float) -> list[list[object]]:
+    ligand_atoms = traj.topology.select(f"resname {ligand_resname}")
+    if len(ligand_atoms) == 0:
+        print(f"S'ometen contactes del centre actiu: no s'han trobat atoms {ligand_resname}.")
+        return []
+
+    rows = []
+    for label, residue_atoms in active_site_residue_atoms(traj.topology).items():
+        pairs = np.array([(int(ligand_atom), int(residue_atom)) for ligand_atom in ligand_atoms for residue_atom in residue_atoms], dtype=int)
+        if len(pairs) == 0:
+            continue
+        try:
+            distances = md.compute_distances(traj, pairs, periodic=True)
+        except Exception:
+            distances = md.compute_distances(traj, pairs, periodic=False)
+        min_distances = np.min(distances, axis=1)
+        rows.append([
+            label,
+            float(np.mean(min_distances)),
+            float(np.min(min_distances)),
+            float(np.mean(min_distances < cutoff_nm) * 100.0),
+        ])
+    return sorted(rows, key=lambda row: float(row[3]), reverse=True)
+
+
+def write_catalytic_metrics(md, joined, kind: SimulationKind, kind_output_dir: Path, times_ns: np.ndarray, args: argparse.Namespace) -> list[str]:
+    if kind.name != "holo" or args.skip_catalytic_figure:
+        return []
+
+    distance_series, metadata_rows = compute_min_distances(md, joined, catalytic_distance_specs(args))
+    angle_series = compute_ligand_internal_angles(md, joined, attack_angle_specs(args))
+    summary: list[str] = []
+
+    if distance_series:
+        labels = list(distance_series)
+        write_rows(
+            kind_output_dir / "catalytic_atom_distances.csv",
+            ["frame", "time_ns", *[f"{label}_nm" for label in labels]],
+            [[idx, time_ns, *[distance_series[label][idx] for label in labels]] for idx, time_ns in enumerate(times_ns)],
+        )
+        write_rows(
+            kind_output_dir / "catalytic_atom_distance_summary.csv",
+            ["metric", "mean_nm", "min_nm", "max_nm"],
+            [[label, float(np.mean(values)), float(np.min(values)), float(np.max(values))] for label, values in distance_series.items()],
+        )
+        summary.extend(f"Distancia catalitica mitjana {label} (nm): {float(np.mean(values)):.6f}" for label, values in distance_series.items())
+    if metadata_rows:
+        write_rows(
+            kind_output_dir / "catalytic_atom_distance_selections.csv",
+            ["metric", "selector_1", "selector_2", "n_atoms_1", "n_atoms_2", "n_pairs"],
+            metadata_rows,
+        )
+
+    if angle_series:
+        write_rows(
+            kind_output_dir / "catalytic_attack_angles.csv",
+            ["frame", "time_ns", *[f"{label}_deg" for label in angle_series]],
+            [[idx, time_ns, *[angle_series[label][idx] for label in angle_series]] for idx, time_ns in enumerate(times_ns)],
+        )
+        summary.extend(f"Angle catalitic mitja {label} (graus): {float(np.mean(values)):.6f}" for label, values in angle_series.items())
+
+    save_catalytic_preorganization_plot(kind_output_dir / "catalytic_preorganization.png", times_ns, distance_series, angle_series)
+
+    contact_rows = compute_active_site_contacts(md, joined, args.ligand_resname, args.active_site_contact_cutoff_nm)
+    if contact_rows:
+        write_rows(
+            kind_output_dir / "active_site_ligand_contacts.csv",
+            ["residue", "mean_min_distance_nm", "min_distance_nm", "contact_occupancy_percent"],
+            contact_rows,
+        )
+        save_contact_bar_plot(kind_output_dir / "active_site_ligand_contacts.png", contact_rows, "Contactes lligand-centre actiu")
+        summary.append(f"Residus del centre actiu en contacte: {len(contact_rows)}")
+    return summary
+
 def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: Path, args: argparse.Namespace) -> bool:
     joined, frame_map = load_and_join_trajectories(md, kind, run_dirs)
     if joined is None:
@@ -526,7 +693,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         rmsd,
         f"{system_label}: RMSD de la proteina",
         "Temps (ns)",
-        "Distancia (nm)",
+        "Distància (nm)",
     )
     save_line_plot(
         kind_output_dir / "radius_of_gyration.png",
@@ -534,7 +701,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         rg,
         f"{system_label}: radi de gir",
         "Temps (ns)",
-        "Distancia (nm)",
+        "Distància (nm)",
     )
     save_rmsf_plot(
         kind_output_dir / "rmsf_ca.png",
@@ -557,7 +724,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             hbond_counts,
             f"{system_label}: ponts d'hidrogen",
             "Temps (ns)",
-            "Nombre de ponts",
+            "Nombre de ponts d'hidrogen",
         )
         hbond_summary = [f"Ponts d'hidrogen mitjans: {float(np.mean(hbond_counts)):.6f}"]
 
@@ -577,13 +744,14 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             ligand_hbond_counts,
             f"{system_label}: ponts lligand-proteina",
             "Temps (ns)",
-            "Nombre de ponts",
+            "Nombre de ponts d'hidrogen",
         )
         hbond_summary.append(
             f"Ponts d'hidrogen proteina-lligand mitjans ({args.ligand_resname}): "
             f"{float(np.mean(ligand_hbond_counts)):.6f}"
         )
 
+    catalytic_summary = write_catalytic_metrics(md, joined, kind, kind_output_dir, times_ns, args)
     thermo_summary = write_thermo(kind, run_dirs, kind_output_dir, args.timestep_fs)
     summary = [
         f"System: {kind.name}",
@@ -595,6 +763,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitjà (nm): 0.000000",
         f"RMSF C-α maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α màxim (nm): 0.000000",
         *hbond_summary,
+        *catalytic_summary,
         *thermo_summary,
     ]
     (kind_output_dir / "summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")

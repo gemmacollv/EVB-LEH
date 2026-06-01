@@ -1,13 +1,17 @@
 System: holo
-Runs: run_001, run_002, run_003, run_004, run_005, run_006, run_007, run_008, run_009
+Runs: run_009
 Topology: /home/10034103@uvic.local/EVB-LEH/calculs/prepared pdbs/02_openmm_md_setup/protein_holo/protein_holo.prmtop
-Frames totals: 3626
-Temps final (ns): 145.000000
-RMSD mitja proteina (nm): 0.195432
-Radi de gir mitja (nm): 1.855195
-RMSF CA maxim (nm): 0.338439
-Ponts d'hidrogen mitjans: 200.918919
-Ponts d'hidrogen proteina-lligand mitjans (HPN): 4.710149
-Thermo frames: 3626
-Temperatura mitjana (K): 301.762388
-Energia potencial mitjana (kJ/mol): -404473.859542
+Frames totals: 403
+Temps final (ns): 16.080000
+RMSD mitja proteina (nm): 0.161443
+Radi de gir mitja (nm): 1.851808
+RMSF C-α maxim (nm): 0.207924
+Ponts d'hidrogen: omesos
+Distancia catalitica mitjana HPN_C1_ASP_OD (nm): 0.355477
+Distancia catalitica mitjana HPN_O1_ARG_NH_NE (nm): 0.462345
+Distancia catalitica mitjana HPN_O1_ASP_OD (nm): 0.380115
+Angle catalitic mitja HPN_N1_C1_O1 (graus): 117.010033
+Residus del centre actiu en contacte: 14
+Thermo frames: 403
+Temperatura mitjana (K): 301.717894
+Energia potencial mitjana (kJ/mol): -404583.530137
