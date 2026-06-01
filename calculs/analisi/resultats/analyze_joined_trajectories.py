@@ -474,76 +474,81 @@ def catalytic_distance_specs(args: argparse.Namespace) -> list[tuple[str, str, s
 
 
 def select_nucleophilic_water_geometry(md, traj) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[object]]:
-    cached_geometry = getattr(traj, "_nucleophilic_water_geometry_cache", None)
-    if cached_geometry is not None:
-        return cached_geometry
+    cache_key = id(traj)
+    if cache_key in _NUCLEOPHILIC_WATER_GEOMETRY_CACHE:
+        return _NUCLEOPHILIC_WATER_GEOMETRY_CACHE[cache_key]
 
     water_selector = "water and name O"
     c1_selector = "resname HPN and (name C1 or name C1x)"
     asp_selector = f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)"
+    candidate_cutoff_nm = 0.65
     water_atoms = traj.topology.select(water_selector)
     c1_atoms = traj.topology.select(c1_selector)
     asp_od_atoms = traj.topology.select(asp_selector)
     if len(water_atoms) == 0 or len(c1_atoms) == 0 or len(asp_od_atoms) == 0:
         raise ValueError("Selecció buida per identificar l'aigua nucleòfila.")
 
-    water_c1_pairs = np.array(
-        [(int(water_atom), int(c1_atom)) for water_atom in water_atoms for c1_atom in c1_atoms],
-        dtype=int,
-    )
     selected_distances = np.empty(traj.n_frames, dtype=float)
     selected_waters = np.empty(traj.n_frames, dtype=int)
     selected_c1_atoms = np.empty(traj.n_frames, dtype=int)
     selected_asp_atoms = np.empty(traj.n_frames, dtype=int)
     chunk_size = 100
-    n_candidates = min(24, len(water_atoms))
 
     for start in range(0, traj.n_frames, chunk_size):
         stop = min(start + chunk_size, traj.n_frames)
         chunk = traj[start:stop]
         try:
-            water_c1 = md.compute_distances(chunk, water_c1_pairs, periodic=True)
+            nearby_waters_by_frame = md.compute_neighbors(
+                chunk,
+                candidate_cutoff_nm,
+                query_indices=c1_atoms,
+                haystack_indices=water_atoms,
+                periodic=True,
+            )
         except Exception:
-            water_c1 = md.compute_distances(chunk, water_c1_pairs, periodic=False)
+            nearby_waters_by_frame = md.compute_neighbors(
+                chunk,
+                candidate_cutoff_nm,
+                query_indices=c1_atoms,
+                haystack_indices=water_atoms,
+                periodic=False,
+            )
 
-        n_chunk = stop - start
-        water_c1 = water_c1.reshape(n_chunk, len(water_atoms), len(c1_atoms))
-        nearest_c1_positions = np.argmin(water_c1, axis=2)
-        nearest_c1_distances = np.min(water_c1, axis=2)
-        candidate_positions = np.argpartition(nearest_c1_distances, n_candidates - 1, axis=1)[:, :n_candidates]
-
-        for local_frame in range(n_chunk):
-            candidates = candidate_positions[local_frame]
-            candidate_water_atoms = water_atoms[candidates]
-            water_xyz = chunk.xyz[local_frame, candidate_water_atoms, :]
-            asp_xyz = chunk.xyz[local_frame, asp_od_atoms, :]
-            water_asp = np.linalg.norm(water_xyz[:, np.newaxis, :] - asp_xyz[np.newaxis, :, :], axis=2)
-            nearest_asp_positions = np.argmin(water_asp, axis=1)
-            nearest_asp_distances = np.min(water_asp, axis=1)
-            c1_distances = nearest_c1_distances[local_frame, candidates]
-            scores = c1_distances + nearest_asp_distances
-            best_candidate = int(np.argmin(scores))
+        for local_frame, candidate_waters in enumerate(nearby_waters_by_frame):
             frame_index = start + local_frame
+            candidates = np.asarray(candidate_waters, dtype=int)
+            if len(candidates) == 0:
+                candidates = water_atoms
 
-            selected_distances[frame_index] = c1_distances[best_candidate]
-            selected_waters[frame_index] = candidate_water_atoms[best_candidate]
-            selected_c1_atoms[frame_index] = c1_atoms[
-                nearest_c1_positions[local_frame, candidates[best_candidate]]
-            ]
-            selected_asp_atoms[frame_index] = asp_od_atoms[nearest_asp_positions[best_candidate]]
+            frame_xyz = chunk.xyz[local_frame]
+            candidate_xyz = frame_xyz[candidates]
+            c1_xyz = frame_xyz[c1_atoms]
+            asp_xyz = frame_xyz[asp_od_atoms]
+
+            water_c1 = np.linalg.norm(candidate_xyz[:, np.newaxis, :] - c1_xyz[np.newaxis, :, :], axis=2)
+            water_asp = np.linalg.norm(candidate_xyz[:, np.newaxis, :] - asp_xyz[np.newaxis, :, :], axis=2)
+            nearest_c1_positions = np.argmin(water_c1, axis=1)
+            nearest_asp_positions = np.argmin(water_asp, axis=1)
+            nearest_c1_distances = np.min(water_c1, axis=1)
+            nearest_asp_distances = np.min(water_asp, axis=1)
+            best_candidate_position = int(np.argmin(nearest_c1_distances + nearest_asp_distances))
+
+            selected_distances[frame_index] = nearest_c1_distances[best_candidate_position]
+            selected_waters[frame_index] = candidates[best_candidate_position]
+            selected_c1_atoms[frame_index] = c1_atoms[nearest_c1_positions[best_candidate_position]]
+            selected_asp_atoms[frame_index] = asp_od_atoms[nearest_asp_positions[best_candidate_position]]
 
     metadata_row = [
         "WAT_O_HPN_C1",
-        f"{water_selector}; triada entre les {n_candidates} aigües més properes a C1 i puntuació C1+Asp132 Oδ",
+        f"{water_selector}; candidates a <{candidate_cutoff_nm:.2f} nm de C1 i triades per proximitat conjunta a C1 i Asp132 Oδ",
         c1_selector,
         len(water_atoms),
         len(c1_atoms),
-        len(water_c1_pairs),
+        "variable",
     ]
     result = (selected_distances, selected_waters, selected_c1_atoms, selected_asp_atoms, metadata_row)
-    setattr(traj, "_nucleophilic_water_geometry_cache", result)
+    _NUCLEOPHILIC_WATER_GEOMETRY_CACHE[cache_key] = result
     return result
-
 
 def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[dict[str, np.ndarray], list[list[object]]]:
     distance_series: dict[str, np.ndarray] = {}
@@ -719,7 +724,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
 
     kind_output_dir = output_dir / kind.name
     kind_output_dir.mkdir(parents=True, exist_ok=True)
-    if not args.only_ligand_hbonds:
+    if not args.only_ligand_hbonds and not args.only_catalytic_metrics:
         try:
             joined = joined.image_molecules(inplace=False)
         except Exception as exc:
