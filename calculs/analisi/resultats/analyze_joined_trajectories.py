@@ -43,10 +43,10 @@ DEFAULT_CATALYTIC_DISTANCE_SPECS = [
 ]
 DEFAULT_ATTACK_ANGLE_SPECS = [
     (
-        "ASP132_OD_WAT_O_HPN_C1",
-        f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)",
+        "WAT_O_HPN_C1_HPN_O1",
         "water and name O",
         "resname HPN and (name C1 or name C1x)",
+        "resname HPN and (name O1 or name O1x)",
     ),
 ]
 
@@ -211,7 +211,6 @@ def save_catalytic_preorganization_plot(
     output_path: Path,
     times_ns: np.ndarray,
     distance_series_nm: dict[str, np.ndarray],
-    angle_series_deg: dict[str, np.ndarray],
 ) -> None:
     try:
         import matplotlib
@@ -222,7 +221,7 @@ def save_catalytic_preorganization_plot(
         print("Matplotlib no esta instal-lat; s\x27escriuen nomes els CSV.")
         return
 
-    if not distance_series_nm and not angle_series_deg:
+    if not distance_series_nm:
         return
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -234,17 +233,8 @@ def save_catalytic_preorganization_plot(
     ax_distance.set_ylabel("Distància (nm)")
     ax_distance.grid(True, linestyle="--", alpha=0.4)
 
-    handles, labels = ax_distance.get_legend_handles_labels()
-    if angle_series_deg:
-        ax_angle = ax_distance.twinx()
-        for label, values in angle_series_deg.items():
-            line = ax_angle.plot(times_ns, values, linewidth=1.0, linestyle=":", label=f"{label} angle")[0]
-            handles.append(line)
-            labels.append(line.get_label())
-        ax_angle.set_ylabel("Angle (graus)")
-
-    if handles:
-        ax_distance.legend(handles, labels, fontsize=7, loc="best")
+    if distance_series_nm:
+        ax_distance.legend(fontsize=7, loc="best")
     fig.tight_layout()
     fig.savefig(output_path)
     plt.close(fig)
@@ -606,7 +596,7 @@ def write_catalytic_metrics(md, joined, kind: SimulationKind, kind_output_dir: P
         )
         summary.extend(f"Angle catalitic mitja {label} (graus): {float(np.mean(values)):.6f}" for label, values in angle_series.items())
 
-    save_catalytic_preorganization_plot(kind_output_dir / "catalytic_preorganization.png", times_ns, distance_series, angle_series)
+    save_catalytic_preorganization_plot(kind_output_dir / "catalytic_preorganization.png", times_ns, distance_series)
 
     contact_rows = compute_active_site_contacts(md, joined, args.ligand_resname, args.active_site_contact_cutoff_nm)
     if contact_rows:

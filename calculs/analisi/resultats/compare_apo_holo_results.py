@@ -126,8 +126,8 @@ def save_rmsf_plot(output_path: Path, apo: np.ndarray, holo: np.ndarray) -> None
     plt.plot(x_values, apo[:n_points], label="APO", linewidth=1.4)
     plt.plot(x_values, holo[:n_points], label="HOLO", linewidth=1.4)
     plt.title("APO vs HOLO: flexibilitat C-α")
-    plt.xlabel("Residus C-α")
-    plt.ylabel("Distancia (nm)")
+    plt.xlabel("Residus Cα")
+    plt.ylabel("Distància (nm)")
     plt.grid(True, linestyle="--", alpha=0.4)
     plt.legend()
     plt.tight_layout()
@@ -159,7 +159,7 @@ def main() -> None:
             "rmsd_apo_holo.png",
             "APO vs HOLO: RMSD de la proteina",
             "Temps (ns)",
-            "Distancia (nm)",
+            "Distància (nm)",
         ),
         (
             "radius_of_gyration.csv",
@@ -168,7 +168,7 @@ def main() -> None:
             "radi_gir_apo_holo.png",
             "APO vs HOLO: radi de gir",
             "Temps (ns)",
-            "Distancia (nm)",
+            "Distància (nm)",
         ),
         (
             "hydrogen_bonds.csv",
@@ -177,7 +177,7 @@ def main() -> None:
             "ponts_hidrogen_apo_holo.png",
             "APO vs HOLO: ponts d.hidrogen",
             "Temps (ns)",
-            "Nombre de ponts",
+            "Nombre de ponts d'hidrogen",
         ),
     ]
 
