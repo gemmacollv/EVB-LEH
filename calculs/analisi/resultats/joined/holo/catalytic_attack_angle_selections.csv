@@ -1,0 +1,2 @@
+metric,selector_1,selector_2,selector_3,n_atoms_1,n_atoms_2,n_atoms_3
+ASP132_OD_WAT_O_HPN_C1,protein and resname ASP and (resSeq 127 or resSeq 273) and (name OD1 or name OD2),water and name O,resname HPN and (name C1 or name C1x),4,8636,2
