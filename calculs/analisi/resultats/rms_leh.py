@@ -149,9 +149,9 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_dir: Path, repor
         [[residue, value] for residue, value in zip(residues, rmsf, strict=True)],
     )
 
-    save_line_plot(run_output_dir / "rmsd.png", times_ns, rmsd, f"{kind.name} {run_dir.name}: RMSD", "Temps (ns)", "RMSD (nm)")
-    save_line_plot(run_output_dir / "radius_of_gyration.png", times_ns, rg, f"{kind.name} {run_dir.name}: radi de gir", "Temps (ns)", "Rg (nm)")
-    save_line_plot(run_output_dir / "rmsf_ca.png", np.arange(len(rmsf)), rmsf, f"{kind.name} {run_dir.name}: RMSF C-α", "Residus C-α", "RMSF (nm)")
+    save_line_plot(run_output_dir / "rmsd.png", times_ns, rmsd, f"{kind.name.upper()} {run_dir.name.replace("_", " ")}: RMSD de la proteina", "Temps (ns)", "Distancia (nm)")
+    save_line_plot(run_output_dir / "radius_of_gyration.png", times_ns, rg, f"{kind.name.upper()} {run_dir.name.replace("_", " ")}: radi de gir", "Temps (ns)", "Distancia (nm)")
+    save_line_plot(run_output_dir / "rmsf_ca.png", np.arange(1, len(rmsf) + 1), rmsf, f"{kind.name.upper()} {run_dir.name.replace("_", " ")}: flexibilitat C-α", "Residus C-α", "Distancia (nm)")
 
     summary = [
         f"System: {kind.name}",

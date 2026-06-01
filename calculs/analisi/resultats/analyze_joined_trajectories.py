@@ -183,14 +183,14 @@ def save_rmsf_plot(output_path: Path, residues: list[str], rmsf_nm: np.ndarray, 
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(9, 5), dpi=300)
-    plt.plot(x_values, rmsf_nm, linewidth=1.4, label="RMSF C-α")
+    plt.plot(x_values, rmsf_nm, linewidth=1.4, label="C-α")
     for position in active_positions:
         plt.axvline(position, color="tab:red", linewidth=0.7, alpha=0.35)
     if active_positions:
         plt.scatter(active_positions, rmsf_nm[np.array(active_positions) - 1], color="tab:red", s=14, label="Centre actiu")
     plt.title(title)
     plt.xlabel("Residus C-α")
-    plt.ylabel("RMSF (nm)")
+    plt.ylabel("Distancia (nm)")
     plt.grid(True, linestyle="--", alpha=0.4)
     if active_positions:
         plt.legend(fontsize=8)
@@ -221,7 +221,7 @@ def save_catalytic_preorganization_plot(
     fig, ax_distance = plt.subplots(figsize=(9, 5), dpi=300)
     for label, values in distance_series_nm.items():
         ax_distance.plot(times_ns, values, linewidth=1.2, label=label)
-    ax_distance.set_title("Figura 8. Distancies catalitiques i preorganitzacio")
+    ax_distance.set_title("Figura 8. Distancies catalitiques")
     ax_distance.set_xlabel("Temps (ns)")
     ax_distance.set_ylabel("Distancia (nm)")
     ax_distance.grid(True, linestyle="--", alpha=0.4)
@@ -452,6 +452,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         except Exception as exc:
             print(f"Avís: no s ha pogut recentrar/aplicar PBC a {kind.name}: {exc}")
     times_ns = frame_times_ns(joined.n_frames, args.report_interval, args.timestep_fs)
+    system_label = kind.name.upper()
 
     write_rows(kind_output_dir / "frame_map.csv", ["joined_frame", "run", "frame_in_run"], frame_map)
 
@@ -472,9 +473,9 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             kind_output_dir / "ligand_hydrogen_bonds.png",
             times_ns,
             ligand_hbond_counts,
-            f"Ponts d'hidrogen proteina-lligand {args.ligand_resname}",
+            f"{system_label}: ponts lligand-proteina",
             "Temps (ns)",
-            "Nombre de ponts d'hidrogen proteina-lligand",
+            "Nombre de ponts",
         )
         summary = [
             f"System: {kind.name}",
@@ -519,28 +520,27 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         [[residue, value] for residue, value in zip(residues, rmsf, strict=True)],
     )
 
-    system_label = kind.name.upper()
     save_line_plot(
         kind_output_dir / "rmsd.png",
         times_ns,
         rmsd,
-        f"Estabilitat estructural del sistema {system_label}",
+        f"{system_label}: RMSD de la proteina",
         "Temps (ns)",
-        "RMSD (nm)",
+        "Distancia (nm)",
     )
     save_line_plot(
         kind_output_dir / "radius_of_gyration.png",
         times_ns,
         rg,
-        f"Compacitat global del sistema {system_label}",
+        f"{system_label}: radi de gir",
         "Temps (ns)",
-        "Radi de gir (nm)",
+        "Distancia (nm)",
     )
     save_rmsf_plot(
         kind_output_dir / "rmsf_ca.png",
         residues,
         rmsf,
-        f"Flexibilitat per residu C-α del sistema {system_label}",
+        f"{system_label}: flexibilitat C-α",
     )
 
     hbond_summary = ["Ponts d'hidrogen: omesos"]
@@ -555,9 +555,9 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             kind_output_dir / "hydrogen_bonds.png",
             times_ns,
             hbond_counts,
-            f"Xarxa de ponts d'hidrogen del sistema {system_label}",
+            f"{system_label}: ponts d'hidrogen",
             "Temps (ns)",
-            "Nombre de ponts d'hidrogen",
+            "Nombre de ponts",
         )
         hbond_summary = [f"Ponts d'hidrogen mitjans: {float(np.mean(hbond_counts)):.6f}"]
 
@@ -575,9 +575,9 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             kind_output_dir / "ligand_hydrogen_bonds.png",
             times_ns,
             ligand_hbond_counts,
-            f"Ponts d'hidrogen proteina-lligand {args.ligand_resname}",
+            f"{system_label}: ponts lligand-proteina",
             "Temps (ns)",
-            "Nombre de ponts d'hidrogen proteina-lligand",
+            "Nombre de ponts",
         )
         hbond_summary.append(
             f"Ponts d'hidrogen proteina-lligand mitjans ({args.ligand_resname}): "

@@ -121,8 +121,8 @@ def save_plots(output_dir: Path, times_ns: np.ndarray, series: dict[str, object]
         return
 
     plot_specs = {
-        "rmsd": ("RMSD proteina", "RMSD (nm)", "rmsd.png"),
-        "radius_of_gyration": ("Radi de gir", "Rg (nm)", "radius_of_gyration.png"),
+        "rmsd": ("RMSD de la proteina", "Distancia (nm)", "rmsd.png"),
+        "radius_of_gyration": ("Radi de gir", "Distancia (nm)", "radius_of_gyration.png"),
         "hbonds": ("Ponts d'hidrogen", "Nombre de ponts", "hydrogen_bonds.png"),
     }
     for key, (title, ylabel, filename) in plot_specs.items():
@@ -142,12 +142,12 @@ def save_plots(output_dir: Path, times_ns: np.ndarray, series: dict[str, object]
         residues = series["rmsf_residues"]
         rmsf = series["rmsf"]
         plt.figure(figsize=(9, 5), dpi=300)
-        plt.plot(np.arange(len(rmsf)), rmsf, linewidth=1.4)
-        plt.title("RMSF C-α")
+        plt.plot(np.arange(1, len(rmsf) + 1), rmsf, linewidth=1.4)
+        plt.title("Flexibilitat C-α")
         plt.xlabel("Residus C-α")
-        plt.ylabel("RMSF (nm)")
+        plt.ylabel("Distancia (nm)")
         if len(residues) <= 30:
-            plt.xticks(np.arange(len(residues)), residues, rotation=90)
+            plt.xticks(np.arange(1, len(residues) + 1), residues, rotation=90)
         plt.grid(True, linestyle="--", alpha=0.4)
         plt.tight_layout()
         plt.savefig(output_dir / "rmsf_ca.png")
