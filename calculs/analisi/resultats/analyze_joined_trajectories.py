@@ -21,6 +21,18 @@ ACTIVE_SITE_RESIDUES = {
     "TYR194", "ASN196", "ARG240", "ASP242", "ASP273",
 }
 ACTIVE_SITE_CONTACT_CUTOFF_NM = 0.45
+ACTIVE_SITE_DISPLAY_LABELS = {
+    "TYR48": "Tyr53 cadena A",
+    "ASN50": "Asn55 cadena A",
+    "ARG94": "Arg99 cadena A",
+    "ASP96": "Asp101 cadena A",
+    "ASP127": "Asp132 cadena A",
+    "TYR194": "Tyr53 cadena B",
+    "ASN196": "Asn55 cadena B",
+    "ARG240": "Arg99 cadena B",
+    "ASP242": "Asp101 cadena B",
+    "ASP273": "Asp132 cadena B",
+}
 CATALYTIC_TYR_SELECTOR = "protein and resname TYR and (resSeq 48 or resSeq 194)"
 CATALYTIC_ASN_SELECTOR = "protein and resname ASN and (resSeq 50 or resSeq 196)"
 GENERAL_BASE_ASP_SELECTOR = "protein and resname ASP and (resSeq 127 or resSeq 273)"
@@ -41,6 +53,7 @@ DEFAULT_CATALYTIC_DISTANCE_SPECS = [
         f"{CATALYTIC_ASN_SELECTOR} and name ND2",
     ),
 ]
+NUCLEOPHILIC_ATTACK_ANGLE_LABEL = "ASP132_OD_WAT_O_HPN_C1"
 
 @dataclass(frozen=True)
 class SimulationKind:
@@ -69,8 +82,8 @@ SIMULATION_KINDS = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Uneix tots els runs apo/holo en memoria i calcula RMSD, RMSF C-α, "
-            "radi de gir i resum termodinamic per cada sistema."
+            "Uneix tots els runs apo/holo en memòria i calcula RMSD, RMSF C-α, "
+            "radi de gir i resum termodinàmic per cada sistema."
         )
     )
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
@@ -87,7 +100,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-hbonds",
         action="store_true",
-        help="Omet el calcul de ponts d'hidrogen, que pot ser mes lent.",
+        help="Omet el càlcul de ponts d'hidrogen, que pot ser mes lent.",
     )
     parser.add_argument(
         "--ligand-resname",
@@ -97,12 +110,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--only-ligand-hbonds",
         action="store_true",
-        help="Calcula nomes els ponts d'hidrogen proteina-lligand per accelerar aquesta analisi.",
+        help="Calcula només els ponts d'hidrogen proteïna-lligand per accelerar aquesta analisi.",
     )
     parser.add_argument(
         "--save-joined-dcd",
         action="store_true",
-        help="Desa la trajectoria concatenada com joined-apo.dcd/joined-holo.dcd.",
+        help="Desa la trajectòria concatenada com joined-apo.dcd/joined-holo.dcd.",
     )
     parser.add_argument(
         "--skip-catalytic-figure",
@@ -114,7 +127,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         default=None,
         metavar="NOM::SELECTOR1::SELECTOR2",
-        help="Distancia addicional per a la Figura 8, com distancia minima entre dos selectors MDTraj.",
+        help="Distància addicional per a la Figura 8, com distància minima entre dos selectors MDTraj.",
     )
     parser.add_argument(
         "--no-default-catalytic-metrics",
@@ -145,7 +158,7 @@ def save_line_plot(output_path: Path, x_values, y_values, title: str, xlabel: st
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ModuleNotFoundError:
-        print("Matplotlib no esta instal-lat; s'escriuen nomes els CSV.")
+        print("Matplotlib no està instal·lat; s'escriuen només els CSV.")
         return
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -167,24 +180,40 @@ def save_rmsf_plot(output_path: Path, residues: list[str], rmsf_nm: np.ndarray, 
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ModuleNotFoundError:
-        print("Matplotlib no esta instal-lat; s'escriuen nomes els CSV.")
+        print("Matplotlib no està instal·lat; s'escriuen només els CSV.")
         return
 
     x_values = np.arange(1, len(rmsf_nm) + 1)
-    active_positions = [idx + 1 for idx, residue in enumerate(residues) if residue in ACTIVE_SITE_RESIDUES]
+    active_points = [
+        (idx + 1, residue, ACTIVE_SITE_DISPLAY_LABELS[residue])
+        for idx, residue in enumerate(residues)
+        if residue in ACTIVE_SITE_DISPLAY_LABELS
+    ]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(9, 5), dpi=300)
+    plt.figure(figsize=(11, 5.5), dpi=300)
     plt.plot(x_values, rmsf_nm, linewidth=1.4, label="C-α")
-    for position in active_positions:
+    for position, _residue, label in active_points:
         plt.axvline(position, color="tab:red", linewidth=0.7, alpha=0.35)
-    if active_positions:
-        plt.scatter(active_positions, rmsf_nm[np.array(active_positions) - 1], color="tab:red", s=14, label="Centre actiu")
+        plt.annotate(
+            label,
+            xy=(position, rmsf_nm[position - 1]),
+            xytext=(0, 8),
+            textcoords="offset points",
+            rotation=70,
+            ha="left",
+            va="bottom",
+            fontsize=6.5,
+            color="tab:red",
+        )
+    if active_points:
+        positions = np.array([position for position, _residue, _label in active_points])
+        plt.scatter(positions, rmsf_nm[positions - 1], color="tab:red", s=14, label="Centre actiu")
     plt.title(title)
     plt.xlabel("Residus C-α")
-    plt.ylabel("Distancia (nm)")
+    plt.ylabel("Distància (nm)")
     plt.grid(True, linestyle="--", alpha=0.4)
-    if active_positions:
+    if active_points:
         plt.legend(fontsize=8)
     plt.tight_layout()
     plt.savefig(output_path)
@@ -202,7 +231,7 @@ def save_catalytic_preorganization_plot(
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ModuleNotFoundError:
-        print("Matplotlib no esta instal-lat; s\x27escriuen nomes els CSV.")
+        print("Matplotlib no està instal·lat; s\x27escriuen només els CSV.")
         return
 
     if not distance_series_nm:
@@ -231,7 +260,7 @@ def save_contact_bar_plot(output_path: Path, contact_rows: list[list[object]], t
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ModuleNotFoundError:
-        print("Matplotlib no esta instal-lat; s\x27escriuen nomes els CSV.")
+        print("Matplotlib no està instal·lat; s\x27escriuen només els CSV.")
         return
 
     if not contact_rows:
@@ -244,7 +273,7 @@ def save_contact_bar_plot(output_path: Path, contact_rows: list[list[object]], t
     plt.bar(labels, occupancies, color="tab:green", alpha=0.8)
     plt.title(title)
     plt.xlabel("Residus del centre actiu")
-    plt.ylabel("Ocupacio de contacte (%)")
+    plt.ylabel("Ocupació de contacte (%)")
     plt.xticks(rotation=45, ha="right")
     plt.grid(True, axis="y", linestyle="--", alpha=0.4)
     plt.tight_layout()
@@ -266,7 +295,7 @@ def frame_times_ns(n_frames: int, report_interval: int, timestep_fs: float) -> n
 def select_atoms(topology, selector: str, label: str) -> np.ndarray:
     indices = topology.select(selector)
     if len(indices) == 0:
-        raise ValueError(f"No s'han trobat atoms per a {label}: {selector}")
+        raise ValueError(f"No s'han trobat àtoms per a {label}: {selector}")
     return indices
 
 
@@ -357,11 +386,11 @@ def compute_hbond_counts(md, traj) -> np.ndarray:
 def compute_ligand_hbond_counts(md, traj, ligand_resname: str) -> np.ndarray:
     ligand_atoms_original = set(traj.topology.select(f"resname {ligand_resname}"))
     if not ligand_atoms_original:
-        raise ValueError(f"No s'han trobat atoms del lligand amb resname {ligand_resname}.")
+        raise ValueError(f"No s'han trobat àtoms del lligand amb resname {ligand_resname}.")
 
     protein_atoms = traj.topology.select("protein")
     if len(protein_atoms) == 0:
-        raise ValueError("No s'han trobat atoms de proteina per calcular ponts proteina-lligand.")
+        raise ValueError("No s'han trobat àtoms de proteïna per calcular ponts proteïna-lligand.")
 
     try:
         nearby_by_frame = md.compute_neighbors(
@@ -445,11 +474,11 @@ def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[
         atoms_a = traj.topology.select(selector_a)
         atoms_b = traj.topology.select(selector_b)
         if len(atoms_a) == 0 or len(atoms_b) == 0:
-            print(f"S'omet distancia catalitica {label}: seleccio buida.")
+            print(f"S'omet distància catalítica {label}: selecció buida.")
             continue
         pairs = np.array([(int(atom_a), int(atom_b)) for atom_a in atoms_a for atom_b in atoms_b if atom_a != atom_b], dtype=int)
         if len(pairs) == 0:
-            print(f"S'omet distancia catalitica {label}: no hi ha parelles d'atoms valides.")
+            print(f"S'omet distància catalítica {label}: no hi ha parelles d'àtoms vàlides.")
             continue
         try:
             distances = md.compute_distances(traj, pairs, periodic=True)
@@ -460,6 +489,54 @@ def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[
         metadata_rows.append([label, selector_a, selector_b, len(atoms_a), len(atoms_b), len(pairs)])
     return distance_series, metadata_rows
 
+
+
+def compute_nucleophilic_attack_angles(md, traj) -> tuple[dict[str, np.ndarray], list[list[object]]]:
+    water_atoms = traj.topology.select("water and name O")
+    c1_atoms = traj.topology.select("resname HPN and (name C1 or name C1x)")
+    asp_od_atoms = traj.topology.select(f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)")
+    if len(water_atoms) == 0 or len(c1_atoms) == 0 or len(asp_od_atoms) == 0:
+        print(f"S'omet angle catalític {NUCLEOPHILIC_ATTACK_ANGLE_LABEL}: selecció buida.")
+        return {}, []
+
+    water_c1_pairs = np.array(
+        [(int(water_atom), int(c1_atom)) for water_atom in water_atoms for c1_atom in c1_atoms],
+        dtype=int,
+    )
+    try:
+        water_c1_distances = md.compute_distances(traj, water_c1_pairs, periodic=True)
+    except Exception:
+        water_c1_distances = md.compute_distances(traj, water_c1_pairs, periodic=False)
+
+    nearest_pair_indices = np.argmin(water_c1_distances, axis=1)
+    selected_waters = water_c1_pairs[nearest_pair_indices, 0]
+    selected_c1_atoms = water_c1_pairs[nearest_pair_indices, 1]
+
+    frame_indices = np.arange(traj.n_frames)
+    water_xyz = traj.xyz[frame_indices, selected_waters, :]
+    c1_xyz = traj.xyz[frame_indices, selected_c1_atoms, :]
+    asp_od_xyz = traj.xyz[:, asp_od_atoms, :]
+    asp_water_distances = np.linalg.norm(asp_od_xyz - water_xyz[:, np.newaxis, :], axis=2)
+    selected_asp_positions = np.argmin(asp_water_distances, axis=1)
+    asp_xyz = asp_od_xyz[frame_indices, selected_asp_positions, :]
+
+    asp_to_water = asp_xyz - water_xyz
+    c1_to_water = c1_xyz - water_xyz
+    dot_products = np.sum(asp_to_water * c1_to_water, axis=1)
+    norms = np.linalg.norm(asp_to_water, axis=1) * np.linalg.norm(c1_to_water, axis=1)
+    cosines = np.divide(dot_products, norms, out=np.full_like(dot_products, np.nan), where=norms > 0.0)
+    angles_deg = np.degrees(np.arccos(np.clip(cosines, -1.0, 1.0)))
+
+    metadata_rows = [[
+        NUCLEOPHILIC_ATTACK_ANGLE_LABEL,
+        f"{GENERAL_BASE_ASP_SELECTOR} and (name OD1 or name OD2)",
+        "water and name O",
+        "resname HPN and (name C1 or name C1x)",
+        len(asp_od_atoms),
+        len(water_atoms),
+        len(c1_atoms),
+    ]]
+    return {NUCLEOPHILIC_ATTACK_ANGLE_LABEL: angles_deg}, metadata_rows
 
 
 def residue_label(residue) -> str:
@@ -480,7 +557,7 @@ def active_site_residue_atoms(topology) -> dict[str, list[int]]:
 def compute_active_site_contacts(md, traj, ligand_resname: str, cutoff_nm: float) -> list[list[object]]:
     ligand_atoms = traj.topology.select(f"resname {ligand_resname}")
     if len(ligand_atoms) == 0:
-        print(f"S'ometen contactes del centre actiu: no s'han trobat atoms {ligand_resname}.")
+        print(f"S'ometen contactes del centre actiu: no s'han trobat àtoms {ligand_resname}.")
         return []
 
     rows = []
@@ -521,12 +598,33 @@ def write_catalytic_metrics(md, joined, kind: SimulationKind, kind_output_dir: P
             ["metric", "mean_nm", "min_nm", "max_nm"],
             [[label, float(np.mean(values)), float(np.min(values)), float(np.max(values))] for label, values in distance_series.items()],
         )
-        summary.extend(f"Distancia catalitica mitjana {label} (nm): {float(np.mean(values)):.6f}" for label, values in distance_series.items())
+        summary.extend(f"Distància catalítica mitjana {label} (nm): {float(np.mean(values)):.6f}" for label, values in distance_series.items())
     if metadata_rows:
         write_rows(
             kind_output_dir / "catalytic_atom_distance_selections.csv",
             ["metric", "selector_1", "selector_2", "n_atoms_1", "n_atoms_2", "n_pairs"],
             metadata_rows,
+        )
+
+    angle_series, angle_metadata_rows = compute_nucleophilic_attack_angles(md, joined)
+    if angle_series:
+        labels = list(angle_series)
+        write_rows(
+            kind_output_dir / "catalytic_attack_angles.csv",
+            ["frame", "time_ns", *[f"{label}_deg" for label in labels]],
+            [[idx, time_ns, *[angle_series[label][idx] for label in labels]] for idx, time_ns in enumerate(times_ns)],
+        )
+        write_rows(
+            kind_output_dir / "catalytic_attack_angle_summary.csv",
+            ["metric", "mean_deg", "min_deg", "max_deg"],
+            [[label, float(np.mean(values)), float(np.min(values)), float(np.max(values))] for label, values in angle_series.items()],
+        )
+        summary.extend(f"Angle d'atac nucleòfil mitjà {label} (graus): {float(np.mean(values)):.6f}" for label, values in angle_series.items())
+    if angle_metadata_rows:
+        write_rows(
+            kind_output_dir / "catalytic_attack_angle_selections.csv",
+            ["metric", "selector_1", "selector_2", "selector_3", "n_atoms_1", "n_atoms_2", "n_atoms_3"],
+            angle_metadata_rows,
         )
 
     save_catalytic_preorganization_plot(kind_output_dir / "catalytic_preorganization.png", times_ns, distance_series)
@@ -545,7 +643,7 @@ def write_catalytic_metrics(md, joined, kind: SimulationKind, kind_output_dir: P
 def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: Path, args: argparse.Namespace) -> bool:
     joined, frame_map = load_and_join_trajectories(md, kind, run_dirs)
     if joined is None:
-        print(f"No s'ha pogut carregar cap trajectoria per {kind.name}.")
+        print(f"No s'ha pogut carregar cap trajectòria per {kind.name}.")
         return False
 
     kind_output_dir = output_dir / kind.name
@@ -554,7 +652,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         try:
             joined = joined.image_molecules(inplace=False)
         except Exception as exc:
-            print(f"Avís: no s ha pogut recentrar/aplicar PBC a {kind.name}: {exc}")
+            print(f"Avís: no s'ha pogut recentrar/aplicar PBC a {kind.name}: {exc}")
     times_ns = frame_times_ns(joined.n_frames, args.report_interval, args.timestep_fs)
     system_label = kind.name.upper()
 
@@ -562,7 +660,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
 
     if args.only_ligand_hbonds:
         if kind.name != "holo":
-            print("--only-ligand-hbonds nomes aplica al sistema holo; s'omet aquest sistema.")
+            print("--only-ligand-hbonds només aplica al sistema holo; s'omet aquest sistema.")
             return False
         ligand_hbond_counts = compute_ligand_hbond_counts(md, joined, args.ligand_resname)
         write_rows(
@@ -577,7 +675,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             kind_output_dir / "ligand_hydrogen_bonds.png",
             times_ns,
             ligand_hbond_counts,
-            f"{system_label}: ponts lligand-proteina",
+            f"{system_label}: ponts lligand-proteïna",
             "Temps (ns)",
             "Nombre de ponts",
         )
@@ -586,16 +684,16 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             f"Runs units: {', '.join(run_dir.name for run_dir in run_dirs)}",
             f"Frames totals: {joined.n_frames}",
             f"Temps final concatenat (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final concatenat (ns): 0.000000",
-            f"Ponts d'hidrogen proteina-lligand mitjans ({args.ligand_resname}): {float(np.mean(ligand_hbond_counts)):.6f}",
+            f"Ponts d'hidrogen proteïna-lligand mitjans ({args.ligand_resname}): {float(np.mean(ligand_hbond_counts)):.6f}",
         ]
         (kind_output_dir / "ligand_hydrogen_bonds_summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
-        print(f"Analisi de ponts proteina-lligand desada a: {kind_output_dir}")
+        print(f"Anàlisi de ponts proteïna-lligand desada a: {kind_output_dir}")
         return True
 
     if args.save_joined_dcd:
         joined.save_dcd(str(kind_output_dir / f"joined-{kind.name}.dcd"))
 
-    protein_atoms = select_atoms(joined.topology, "protein", "proteina")
+    protein_atoms = select_atoms(joined.topology, "protein", "proteïna")
     ca_atoms = select_atoms(joined.topology, "protein and name CA", "C-α")
 
     protein_traj = joined.atom_slice(protein_atoms)
@@ -628,7 +726,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         kind_output_dir / "rmsd.png",
         times_ns,
         rmsd,
-        f"{system_label}: RMSD de la proteina",
+        f"{system_label}: RMSD de la proteïna",
         "Temps (ns)",
         "Distància (nm)",
     )
@@ -679,12 +777,12 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             kind_output_dir / "ligand_hydrogen_bonds.png",
             times_ns,
             ligand_hbond_counts,
-            f"{system_label}: ponts lligand-proteina",
+            f"{system_label}: ponts lligand-proteïna",
             "Temps (ns)",
             "Nombre de ponts d'hidrogen",
         )
         hbond_summary.append(
-            f"Ponts d'hidrogen proteina-lligand mitjans ({args.ligand_resname}): "
+            f"Ponts d'hidrogen proteïna-lligand mitjans ({args.ligand_resname}): "
             f"{float(np.mean(ligand_hbond_counts)):.6f}"
         )
 
@@ -696,15 +794,15 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         f"Topology: {kind.topology}",
         f"Frames totals: {joined.n_frames}",
         f"Temps final (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final (ns): 0.000000",
-        f"RMSD mitja proteina (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitjà proteina (nm): 0.000000",
-        f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitjà (nm): 0.000000",
-        f"RMSF C-α maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α màxim (nm): 0.000000",
+        f"RMSD mitjà proteïna (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitjà proteïna (nm): 0.000000",
+        f"Radi de gir mitjà (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitjà (nm): 0.000000",
+        f"RMSF C-α màxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α màxim (nm): 0.000000",
         *hbond_summary,
         *catalytic_summary,
         *thermo_summary,
     ]
     (kind_output_dir / "summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
-    print(f"Analisi concatenada desada a: {kind_output_dir}")
+    print(f"Anàlisi concatenada desada a: {kind_output_dir}")
     return True
 
 
@@ -713,7 +811,7 @@ def main() -> None:
     try:
         import mdtraj as md
     except ModuleNotFoundError as exc:
-        raise SystemExit("Per executar aquest script cal instal-lar mdtraj. Exemple: conda install -c conda-forge mdtraj") from exc
+        raise SystemExit("Per executar aquest script cal instal·lar mdtraj. Exemple: conda install -c conda-forge mdtraj") from exc
 
     args.data_dir = args.data_dir.resolve()
     args.output_dir = args.output_dir.resolve()
@@ -730,7 +828,7 @@ def main() -> None:
         analyzed_any = analyze_joined(md, kind, existing_run_dirs, args.output_dir, args) or analyzed_any
 
     if not analyzed_any:
-        raise SystemExit("No s'ha analitzat cap trajectoria.")
+        raise SystemExit("No s'ha analitzat cap trajectòria.")
 
 
 if __name__ == "__main__":

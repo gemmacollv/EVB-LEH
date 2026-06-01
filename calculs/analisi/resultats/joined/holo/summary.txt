@@ -7,9 +7,9 @@ RMSD mitja proteina (nm): 0.195432
 Radi de gir mitja (nm): 1.855195
 RMSF C-α maxim (nm): 0.338439
 Ponts d'hidrogen: omesos
-Distancia catalitica mitjana WAT_O_HPN_C1 (nm): 0.397053
-Distancia catalitica mitjana HPN_O1_TYR53_OH (nm): 0.287879
-Distancia catalitica mitjana HPN_O1_ASN55_ND2 (nm): 0.312210
+Distancia catalitica mitjana HPN_O1_TYR_OH (nm): 0.287879
+Distancia catalitica mitjana HPN_O1_ASN_ND2 (nm): 0.312210
+Distancia catalitica mitjana HPN_C1_ASP132_OD (nm): 0.357810
 Residus del centre actiu en contacte: 10
 Thermo frames: 3626
 Temperatura mitjana (K): 301.762388
