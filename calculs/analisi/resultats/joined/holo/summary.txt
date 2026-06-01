@@ -10,7 +10,6 @@ Ponts d'hidrogen: omesos
 Distancia catalitica mitjana WAT_O_HPN_C1 (nm): 0.397053
 Distancia catalitica mitjana HPN_O1_TYR53_OH (nm): 0.287879
 Distancia catalitica mitjana HPN_O1_ASN55_ND2 (nm): 0.312210
-Angle catalitic mitja WAT_O_HPN_C1_HPN_O1 (graus): 43.007768
 Residus del centre actiu en contacte: 10
 Thermo frames: 3626
 Temperatura mitjana (K): 301.762388

@@ -41,15 +41,6 @@ DEFAULT_CATALYTIC_DISTANCE_SPECS = [
         f"{CATALYTIC_ASN_SELECTOR} and name ND2",
     ),
 ]
-DEFAULT_ATTACK_ANGLE_SPECS = [
-    (
-        "WAT_O_HPN_C1_HPN_O1",
-        "water and name O",
-        "resname HPN and (name C1 or name C1x)",
-        "resname HPN and (name O1 or name O1x)",
-    ),
-]
-
 
 @dataclass(frozen=True)
 class SimulationKind:
@@ -126,16 +117,9 @@ def parse_args() -> argparse.Namespace:
         help="Distancia addicional per a la Figura 8, com distancia minima entre dos selectors MDTraj.",
     )
     parser.add_argument(
-        "--attack-angle",
-        action="append",
-        default=None,
-        metavar="NOM::SELECTOR1::SELECTOR2::SELECTOR3",
-        help="Angle addicional per a la Figura 8. El segon selector es pren com a vertex de l angle.",
-    )
-    parser.add_argument(
         "--no-default-catalytic-metrics",
         action="store_true",
-        help="No calcula les distancies/angles catalitics per defecte basats en HPN.",
+        help="No calcula les distancies catalitiques per defecte basades en HPN.",
     )
     parser.add_argument(
         "--active-site-contact-cutoff-nm",
@@ -453,14 +437,6 @@ def catalytic_distance_specs(args: argparse.Namespace) -> list[tuple[str, str, s
     return specs
 
 
-def attack_angle_specs(args: argparse.Namespace) -> list[tuple[str, str, str, str]]:
-    specs: list[tuple[str, str, str, str]] = []
-    if not args.no_default_catalytic_metrics:
-        specs.extend(DEFAULT_ATTACK_ANGLE_SPECS)
-    for raw_spec in args.attack_angle or []:
-        specs.append(parse_metric_spec(raw_spec, 4, "--attack-angle"))
-    return specs
-
 
 def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[dict[str, np.ndarray], list[list[object]]]:
     distance_series: dict[str, np.ndarray] = {}
@@ -484,40 +460,6 @@ def compute_min_distances(md, traj, specs: list[tuple[str, str, str]]) -> tuple[
         metadata_rows.append([label, selector_a, selector_b, len(atoms_a), len(atoms_b), len(pairs)])
     return distance_series, metadata_rows
 
-
-def angle_degrees(point_a: np.ndarray, point_b: np.ndarray, point_c: np.ndarray) -> float:
-    vector_a = point_a - point_b
-    vector_c = point_c - point_b
-    norm_product = np.linalg.norm(vector_a) * np.linalg.norm(vector_c)
-    if norm_product == 0.0:
-        return float("nan")
-    cosine = np.dot(vector_a, vector_c) / norm_product
-    return float(np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0))))
-
-
-def compute_attack_angles(md, traj, specs: list[tuple[str, str, str, str]]) -> dict[str, np.ndarray]:
-    angle_series: dict[str, np.ndarray] = {}
-    for label, selector_a, selector_b, selector_c in specs:
-        atoms_a = traj.topology.select(selector_a)
-        atoms_b = traj.topology.select(selector_b)
-        atoms_c = traj.topology.select(selector_c)
-        if len(atoms_a) == 0 or len(atoms_b) == 0 or len(atoms_c) == 0:
-            print(f"S'omet angle catalitic {label}: seleccio buida.")
-            continue
-
-        values = []
-        for xyz in traj.xyz:
-            coords_a = xyz[atoms_a]
-            coords_b = xyz[atoms_b]
-            coords_c = xyz[atoms_c]
-            b_c_distances = np.linalg.norm(coords_b[:, None, :] - coords_c[None, :, :], axis=2)
-            b_index, c_index = np.unravel_index(np.argmin(b_c_distances), b_c_distances.shape)
-            selected_b = coords_b[b_index]
-            selected_c = coords_c[c_index]
-            a_index = int(np.argmin(np.linalg.norm(coords_a - selected_b, axis=1)))
-            values.append(angle_degrees(coords_a[a_index], selected_b, selected_c))
-        angle_series[label] = np.array(values, dtype=float)
-    return angle_series
 
 
 def residue_label(residue) -> str:
@@ -565,7 +507,6 @@ def write_catalytic_metrics(md, joined, kind: SimulationKind, kind_output_dir: P
         return []
 
     distance_series, metadata_rows = compute_min_distances(md, joined, catalytic_distance_specs(args))
-    angle_series = compute_attack_angles(md, joined, attack_angle_specs(args))
     summary: list[str] = []
 
     if distance_series:
@@ -587,14 +528,6 @@ def write_catalytic_metrics(md, joined, kind: SimulationKind, kind_output_dir: P
             ["metric", "selector_1", "selector_2", "n_atoms_1", "n_atoms_2", "n_pairs"],
             metadata_rows,
         )
-
-    if angle_series:
-        write_rows(
-            kind_output_dir / "catalytic_attack_angles.csv",
-            ["frame", "time_ns", *[f"{label}_deg" for label in angle_series]],
-            [[idx, time_ns, *[angle_series[label][idx] for label in angle_series]] for idx, time_ns in enumerate(times_ns)],
-        )
-        summary.extend(f"Angle catalitic mitja {label} (graus): {float(np.mean(values)):.6f}" for label, values in angle_series.items())
 
     save_catalytic_preorganization_plot(kind_output_dir / "catalytic_preorganization.png", times_ns, distance_series)
 
