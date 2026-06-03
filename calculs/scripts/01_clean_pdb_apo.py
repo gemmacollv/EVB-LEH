@@ -35,7 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--keep-nonprotein",
         action="store_true",
-        help="Conserva HETATM/aigues/holo. Per defecte es deixa nomes la proteina.",
+        help="Conserva HETATM/aigues/holo. Per defecte es deixa només la proteïna.",
     )
     return parser.parse_args()
 
@@ -55,7 +55,7 @@ def main() -> None:
 
     if modeller.topology.getNumAtoms() == 0:
         raise SystemExit(
-            "No queden atoms despres de la neteja. Revisa el PDB o prova --keep-nonprotein."
+            "No queden àtoms després de la neteja. Revisa el PDB o prova --keep-nonprotein."
         )
 
     output_pdb = args.output_dir / "protein_only_cleaned.pdb"
@@ -79,7 +79,7 @@ def main() -> None:
                 f"Atoms sortida: {modeller.topology.getNumAtoms()}",
                 f"Residus no proteics eliminats: {removed_summary}",
                 f"Exemples eliminats: {removed_examples or 'cap'}",
-                "Accio: normalitzacio del PDB i filtratge a proteina estandard.",
+                "Acció: normalització del PDB i filtratge a proteïna estàndard.",
             ]
         )
         + "\n",

@@ -1,8 +1,8 @@
-Comparacio APO vs HOLO
+Comparació APO vs HOLO
 Input: /home/10034103@uvic.local/EVB-LEH/calculs/analisi/resultats/joined
 Output: /home/10034103@uvic.local/EVB-LEH/calculs/analisi/resultats/comparacio_apo_holo
 
-Grafics generats:
+Gràfics generats:
 - rmsd_apo_holo.png
 - radi_gir_apo_holo.png
 - rmsf_apo_holo.png
@@ -15,9 +15,9 @@ Distància catalítica mitjana HPN_O1_TYR53_OH (nm): APO=n/a | HOLO=0.287879
 Distància catalítica mitjana WAT_O_HPN_C1 (nm): APO=n/a | HOLO=0.381911
 Energia potencial mitjana (kJ/mol): APO=-400293.099943 | HOLO=-404473.859542
 Frames totals: APO=3407 | HOLO=3626
+Ponts d'hidrogen lligand - proteïna mitjans (HPN): APO=n/a | HOLO=4.710149
 Ponts d'hidrogen mitjans: APO=197.041679 | HOLO=200.918919
-Ponts d'hidrogen proteïna-lligand mitjans (HPN): APO=n/a | HOLO=4.710149
-RMSD mitjà proteïna (nm): APO=0.206054 | HOLO=0.195432
+RMSD mitjà de la proteïna (nm): APO=0.206054 | HOLO=0.195432
 RMSF C-α màxim (nm): APO=0.455030 | HOLO=0.338439
 Radi de gir mitjà (nm): APO=1.853280 | HOLO=1.855195
 Residus del centre actiu en contacte: APO=n/a | HOLO=10

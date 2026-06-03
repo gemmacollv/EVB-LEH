@@ -2,4 +2,4 @@ System: holo
 Runs units: run_001, run_002, run_003, run_004, run_005, run_006, run_007, run_008, run_009
 Frames totals: 3626
 Temps final concatenat (ns): 145.000000
-Ponts d'hidrogen proteina-lligand mitjans (HPN): 4.710149
+Ponts d'hidrogen lligand - proteïna mitjans (HPN): 4.710149

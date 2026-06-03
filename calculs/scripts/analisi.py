@@ -71,7 +71,7 @@ def parse_args() -> argparse.Namespace:
         "--report-interval",
         type=int,
         default=DEFAULT_REPORT_INTERVAL,
-        help=f"Passos entre frames de la trajectoria. Per defecte: {DEFAULT_REPORT_INTERVAL}.",
+        help=f"Passos entre frames de la trajectòria. Per defecte: {DEFAULT_REPORT_INTERVAL}.",
     )
     parser.add_argument(
         "--timestep-fs",
@@ -98,7 +98,7 @@ def frame_times_ns(n_frames: int, report_interval: int, timestep_fs: float) -> n
 def select_atoms(topology, selector: str, label: str) -> np.ndarray:
     indices = topology.select(selector)
     if len(indices) == 0:
-        raise ValueError(f"No s'han trobat atoms per a la seleccio {label}: {selector}")
+        raise ValueError(f"No s'han trobat àtoms per a la selecció {label}: {selector}")
     return indices
 
 
@@ -107,8 +107,8 @@ def compute_hbond_counts(md, traj) -> np.ndarray:
         hbonds_by_frame = md.wernet_nilsson(traj, periodic=True)
     except AttributeError as exc:
         raise RuntimeError(
-            "Aquesta versio de mdtraj no te wernet_nilsson; cal actualitzar mdtraj "
-            "o adaptar el metode de ponts d'hidrogen."
+            "Aquesta versió de mdtraj no té wernet_nilsson; cal actualitzar mdtraj "
+            "o adaptar el mètode de ponts d'hidrogen."
         ) from exc
     return np.array([len(frame_hbonds) for frame_hbonds in hbonds_by_frame], dtype=int)
 
@@ -117,13 +117,13 @@ def save_plots(output_dir: Path, times_ns: np.ndarray, series: dict[str, object]
     try:
         import matplotlib.pyplot as plt
     except ModuleNotFoundError:
-        print("Matplotlib no esta instal·lat; s'escriuen nomes els CSV.")
+        print("Matplotlib no està instal·lat; s'escriuen només els CSV.")
         return
 
     plot_specs = {
-        "rmsd": ("RMSD de la proteina", "Distancia (nm)", "rmsd.png"),
-        "radius_of_gyration": ("Radi de gir", "Distancia (nm)", "radius_of_gyration.png"),
-        "hbonds": ("Ponts d'hidrogen", "Nombre de ponts", "hydrogen_bonds.png"),
+        "rmsd": ("RMSD", "Distància (nm)", "rmsd.png"),
+        "radius_of_gyration": ("Radi de gir", "Distància (nm)", "radius_of_gyration.png"),
+        "hbonds": ("Ponts d'hidrogen totals", "Nombre de ponts d'hidrogen", "hydrogen_bonds.png"),
     }
     for key, (title, ylabel, filename) in plot_specs.items():
         if key not in series:
@@ -143,9 +143,9 @@ def save_plots(output_dir: Path, times_ns: np.ndarray, series: dict[str, object]
         rmsf = series["rmsf"]
         plt.figure(figsize=(9, 5), dpi=300)
         plt.plot(np.arange(1, len(rmsf) + 1), rmsf, linewidth=1.4)
-        plt.title("Flexibilitat C-α")
+        plt.title("RMSF")
         plt.xlabel("Residus C-α")
-        plt.ylabel("Distancia (nm)")
+        plt.ylabel("Distància (nm)")
         if len(residues) <= 30:
             plt.xticks(np.arange(1, len(residues) + 1), residues, rotation=90)
         plt.grid(True, linestyle="--", alpha=0.4)
@@ -169,7 +169,7 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_subdir: str, rep
     traj = md.load_dcd(str(trajectory_path), top=str(kind.topology))
     times_ns = frame_times_ns(traj.n_frames, report_interval, timestep_fs)
 
-    protein_atoms = select_atoms(traj.topology, "protein", "proteina")
+    protein_atoms = select_atoms(traj.topology, "protein", "proteïna")
     ca_atoms = select_atoms(traj.topology, "protein and name CA", "C-α")
 
     protein_traj = traj.atom_slice(protein_atoms)
@@ -224,9 +224,9 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_subdir: str, rep
         f"Trajectory: {trajectory_path}",
         f"Frames: {traj.n_frames}",
         f"Temps final (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final (ns): 0.000000",
-        f"RMSD mitja proteina (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitja proteina (nm): 0.000000",
-        f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitja (nm): 0.000000",
-        f"RMSF C-α maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α maxim (nm): 0.000000",
+        f"RMSD mitjà de la proteïna (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitjà de la proteïna (nm): 0.000000",
+        f"Radi de gir mitjà (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitjà (nm): 0.000000",
+        f"RMSF C-α màxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α màxim (nm): 0.000000",
         f"Ponts d'hidrogen mitjans: {float(np.mean(hbond_counts)):.6f}" if len(hbond_counts) else "Ponts d'hidrogen mitjans: 0.000000",
     ]
     (output_dir / "summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
@@ -247,7 +247,7 @@ def main() -> None:
         import mdtraj as md
     except ModuleNotFoundError as exc:
         raise SystemExit(
-            "Per executar l'analisi cal instal·lar mdtraj. Exemple: `pip install mdtraj`"
+            "Per executar l'anàlisi cal instal·lar mdtraj. Exemple: `pip install mdtraj`"
         ) from exc
 
     kind_names = ["apo", "holo"] if args.kind == "all" else [args.kind]
@@ -272,7 +272,7 @@ def main() -> None:
             ) or analyzed_any
 
     if not analyzed_any:
-        raise SystemExit("No s'ha analitzat cap trajectoria.")
+        raise SystemExit("No s'ha analitzat cap trajectòria.")
 
 
 if __name__ == "__main__":

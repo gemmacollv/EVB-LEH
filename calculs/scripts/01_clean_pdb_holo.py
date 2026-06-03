@@ -12,7 +12,7 @@ DEFAULT_PREPARED_PDB_DIR = SCRIPT_DIR.parent / "prepared pdbs"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Neteja el PDB per conservar proteina i un o mes holo, eliminant aigua i buffer."
+        description="Neteja el PDB per conservar proteïna i un o més holo, eliminant aigua i buffer."
     )
     parser.add_argument("--study-dir", type=Path, default=DEFAULT_PREPARED_PDB_DIR)
     parser.add_argument("--input-pdb", type=Path, default=Path("input/leh_1nww.pdb"))

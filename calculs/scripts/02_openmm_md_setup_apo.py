@@ -18,7 +18,7 @@ DEFAULT_OUTPUT_DIR = DEFAULT_STUDY_DIR / "02_openmm_md_setup" / "protein_apo"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Prepara la proteina apo, solvata, ionitza i exporta PRMTOP/INPCRD."
+        description="Prepara la proteïna apo, solvata, ionitza i exporta PRMTOP/INPCRD."
     )
     parser.add_argument("--study-dir", type=Path, default=DEFAULT_STUDY_DIR)
     parser.add_argument("--input-pdb", type=Path, default=None)

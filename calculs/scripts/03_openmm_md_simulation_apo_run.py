@@ -99,7 +99,7 @@ def parse_args() -> argparse.Namespace:
         "--steps",
         type=int,
         default=DEFAULT_STEPS,
-        help=f"Nombre maxim de passos de produccio. Per defecte: {DEFAULT_STEPS}.",
+        help=f"Nombre màxim de passos de producció. Per defecte: {DEFAULT_STEPS}.",
     )
     parser.add_argument(
         "--step-chunk",
@@ -155,7 +155,7 @@ def write_final_pdb_image(topology, positions, output_path: Path) -> None:
             holo_atoms.append(point)
 
     if not protein_ca and not holo_atoms:
-        print("No hi ha atoms per dibuixar final.png.")
+        print("No hi ha àtoms per dibuixar final.png.")
         return
 
     fig = plt.figure(figsize=(7, 6), dpi=220)
@@ -203,7 +203,7 @@ def save_final_outputs(simulation, prmtop, checkpoint_path: Path, state_path: Pa
         enforcePeriodicBox=True,
     )
     state_path.write_text(XmlSerializer.serialize(state), encoding="utf-8")
-    print(f"Passos de produccio executats en aquest job: {steps_done}")
+    print(f"Passos de producció executats en aquest job: {steps_done}")
     final_pdb_path = output_dir / "final.pdb"
     final_image_path = output_dir / "final.png"
     with final_pdb_path.open("w", encoding="utf-8") as handle:

@@ -68,7 +68,7 @@ def frame_times_ns(n_frames: int, report_interval: int, timestep_fs: float) -> n
 def select_atoms(topology, selector: str, label: str) -> np.ndarray:
     indices = topology.select(selector)
     if len(indices) == 0:
-        raise ValueError(f"No s'han trobat atoms per a {label}: {selector}")
+        raise ValueError(f"No s'han trobat àtoms per a {label}: {selector}")
     return indices
 
 
@@ -87,7 +87,7 @@ def save_line_plot(output_path: Path, x_values, y_values, title: str, xlabel: st
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ModuleNotFoundError:
-        print("Matplotlib no esta instal-lat; s'escriuen nomes els CSV.")
+        print("Matplotlib no està instal·lat; s'escriuen només els CSV.")
         return
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +120,7 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_dir: Path, repor
     traj = md.load_dcd(str(trajectory_path), top=str(kind.topology))
     times_ns = frame_times_ns(traj.n_frames, report_interval, timestep_fs)
 
-    protein_atoms = select_atoms(traj.topology, "protein", "proteina")
+    protein_atoms = select_atoms(traj.topology, "protein", "proteïna")
     ca_atoms = select_atoms(traj.topology, "protein and name CA", "C-α")
 
     protein_traj = traj.atom_slice(protein_atoms)
@@ -149,20 +149,20 @@ def analyze_run(md, kind: SimulationKind, run_dir: Path, output_dir: Path, repor
         [[residue, value] for residue, value in zip(residues, rmsf, strict=True)],
     )
 
-    save_line_plot(run_output_dir / "rmsd.png", times_ns, rmsd, f"{kind.name.upper()} {run_dir.name.replace("_", " ")}: RMSD de la proteina", "Temps (ns)", "Distancia (nm)")
-    save_line_plot(run_output_dir / "radius_of_gyration.png", times_ns, rg, f"{kind.name.upper()} {run_dir.name.replace("_", " ")}: radi de gir", "Temps (ns)", "Distancia (nm)")
-    save_line_plot(run_output_dir / "rmsf_ca.png", np.arange(1, len(rmsf) + 1), rmsf, f"{kind.name.upper()} {run_dir.name.replace("_", " ")}: flexibilitat C-α", "Residus C-α", "Distancia (nm)")
+    save_line_plot(run_output_dir / "rmsd.png", times_ns, rmsd, "RMSD", "Temps (ns)", "Distància (nm)")
+    save_line_plot(run_output_dir / "radius_of_gyration.png", times_ns, rg, "Radi de gir", "Temps (ns)", "Distància (nm)")
+    save_line_plot(run_output_dir / "rmsf_ca.png", np.arange(1, len(rmsf) + 1), rmsf, "RMSF", "Residus C-α", "Distància (nm)")
 
     summary = [
         f"System: {kind.name}",
         f"Run: {run_dir.name}",
         f"Topology: {kind.topology}",
         f"Trajectory: {trajectory_path}",
-        f"Frames trajectoria: {traj.n_frames}",
-        f"Temps final trajectoria (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final trajectoria (ns): 0.000000",
-        f"RMSD mitja proteina (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitja proteina (nm): 0.000000",
-        f"Radi de gir mitja (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitja (nm): 0.000000",
-        f"RMSF C-α maxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α maxim (nm): 0.000000",
+        f"Frames trajectòria: {traj.n_frames}",
+        f"Temps final trajectòria (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final trajectòria (ns): 0.000000",
+        f"RMSD mitjà de la proteïna (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitjà de la proteïna (nm): 0.000000",
+        f"Radi de gir mitjà (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitjà (nm): 0.000000",
+        f"RMSF C-α màxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α màxim (nm): 0.000000",
     ]
     (run_output_dir / "summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
     print(f"Resultats desats a: {run_output_dir}")
@@ -181,7 +181,7 @@ def main() -> None:
     try:
         import mdtraj as md
     except ModuleNotFoundError as exc:
-        raise SystemExit("Per executar aquest script cal instal-lar mdtraj. Exemple: conda install -c conda-forge mdtraj") from exc
+        raise SystemExit("Per executar aquest script cal instal·lar mdtraj. Exemple: conda install -c conda-forge mdtraj") from exc
 
     args.data_dir = args.data_dir.resolve()
     args.output_dir = args.output_dir.resolve()
@@ -201,7 +201,7 @@ def main() -> None:
             analyzed_any = analyze_run(md, kind, run_dir, args.output_dir, args.report_interval, args.timestep_fs) or analyzed_any
 
     if not analyzed_any:
-        raise SystemExit("No s'ha analitzat cap trajectoria.")
+        raise SystemExit("No s'ha analitzat cap trajectòria.")
 
 
 if __name__ == "__main__":

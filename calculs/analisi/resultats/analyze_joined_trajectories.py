@@ -53,6 +53,11 @@ DEFAULT_CATALYTIC_DISTANCE_SPECS = [
         f"{CATALYTIC_ASN_SELECTOR} and name ND2",
     ),
 ]
+CATALYTIC_DISTANCE_DISPLAY_LABELS = {
+    "WAT_O_HPN_C1": "Aigua nucleòfila - HPN C1",
+    "HPN_O1_TYR53_OH": "HPN O1 - Tyr53",
+    "HPN_O1_ASN55_ND2": "HPN O1 - Asn55",
+}
 NUCLEOPHILIC_ATTACK_ANGLE_LABEL = "ASP132_OD_WAT_O_HPN_C1"
 NUCLEOPHILIC_WATER_C1_CUTOFF_NM = 0.65
 NUCLEOPHILIC_WATER_ASP_CUTOFF_NM = 0.45
@@ -103,7 +108,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-hbonds",
         action="store_true",
-        help="Omet el càlcul de ponts d'hidrogen, que pot ser mes lent.",
+        help="Omet el càlcul de ponts d'hidrogen, que pot ser més lent.",
     )
     parser.add_argument(
         "--ligand-resname",
@@ -113,7 +118,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--only-ligand-hbonds",
         action="store_true",
-        help="Calcula només els ponts d'hidrogen proteïna-lligand per accelerar aquesta analisi.",
+        help="Calcula només els ponts d'hidrogen proteïna-lligand per accelerar aquesta anàlisi.",
     )
     parser.add_argument(
         "--save-joined-dcd",
@@ -123,7 +128,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-catalytic-figure",
         action="store_true",
-        help="Omet la figura de distancies catalitiques i contactes lligand-centre actiu.",
+        help="Omet la figura de distàncies catalítiques i contactes lligand-centre actiu.",
     )
     parser.add_argument(
         "--only-catalytic-metrics",
@@ -135,12 +140,12 @@ def parse_args() -> argparse.Namespace:
         action="append",
         default=None,
         metavar="NOM::SELECTOR1::SELECTOR2",
-        help="Distància addicional per a la Figura 8, com distància minima entre dos selectors MDTraj.",
+        help="Distància addicional per a la Figura 8, com distància mínima entre dos selectors MDTraj.",
     )
     parser.add_argument(
         "--no-default-catalytic-metrics",
         action="store_true",
-        help="No calcula les distancies catalitiques per defecte basades en HPN.",
+        help="No calcula les distàncies catalítiques per defecte basades en HPN.",
     )
     parser.add_argument(
         "--active-site-contact-cutoff-nm",
@@ -170,15 +175,33 @@ def save_line_plot(output_path: Path, x_values, y_values, title: str, xlabel: st
         return
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(8, 5), dpi=300)
-    plt.plot(x_values, y_values, linewidth=1.4)
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.grid(True, linestyle="--", alpha=0.4)
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+    x_values = np.asarray(x_values, dtype=float)
+    y_values = np.asarray(y_values, dtype=float)
+    finite = y_values[np.isfinite(y_values)]
+    y_min = float(np.min(finite)) if len(finite) else 0.0
+    y_max = float(np.max(finite)) if len(finite) else 1.0
+    y_span = max(y_max - y_min, 0.01)
+    y_floor = max(0.0, y_min - 0.08 * y_span)
+
+    fig, ax = plt.subplots(figsize=(9, 5.2), dpi=300)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+    ax.plot(x_values, y_values, linewidth=2.0, color="#1f77b4")
+    ax.set_ylim(y_floor, y_max + 0.12 * y_span)
+    ax.set_title(title, fontsize=14, weight="bold", pad=10)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.grid(True, axis="y", linestyle="-", alpha=0.18)
+    ax.grid(True, axis="x", linestyle=":", alpha=0.08)
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
+    ax.spines["left"].set_color("#b0b0b0")
+    ax.spines["bottom"].set_color("#b0b0b0")
+    ax.spines["top"].set_color("#b0b0b0")
+    ax.spines["right"].set_color("#b0b0b0")
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
 
 
 def save_rmsf_plot(output_path: Path, residues: list[str], rmsf_nm: np.ndarray, title: str) -> None:
@@ -193,16 +216,60 @@ def save_rmsf_plot(output_path: Path, residues: list[str], rmsf_nm: np.ndarray, 
 
     x_values = np.arange(1, len(rmsf_nm) + 1)
 
+    active_points = [
+        (idx + 1, ACTIVE_SITE_DISPLAY_LABELS[residue])
+        for idx, residue in enumerate(residues)
+        if residue in ACTIVE_SITE_DISPLAY_LABELS
+    ]
+    site_colors = ["#1f77b4", "#ff7f0e"]
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(11, 5.5), dpi=300)
-    plt.plot(x_values, rmsf_nm, linewidth=1.4)
-    plt.title(title)
-    plt.xlabel("Residus C-α")
-    plt.ylabel("Distància (nm)")
-    plt.grid(True, linestyle="--", alpha=0.4)
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+    fig, ax = plt.subplots(figsize=(12, 6.2), dpi=300)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+    y_min = float(np.min(rmsf_nm)) if len(rmsf_nm) else 0.0
+    y_max = float(np.max(rmsf_nm)) if len(rmsf_nm) else 1.0
+    y_span = max(y_max - y_min, 0.01)
+    y_floor = max(0.0, y_min - 0.08 * y_span)
+    y_ceiling = y_max + 0.18 * y_span
+    ax.set_ylim(y_floor, y_ceiling)
+    ax.plot(x_values, rmsf_nm, linewidth=2.0, color="#1f77b4")
+    ax.plot(x_values, rmsf_nm, linewidth=0.8, color="#8ec7f0", alpha=0.9)
+    label_lanes = [0.74, 0.56, 0.38]
+    for color_idx, (position, label) in enumerate(active_points):
+        color = site_colors[color_idx % len(site_colors)]
+        point_y = float(rmsf_nm[position - 1])
+        label_y = y_min + y_span * label_lanes[color_idx % len(label_lanes)]
+        label_x = min(position + 1.2, len(rmsf_nm))
+        ax.axvspan(position - 0.55, position + 0.55, color=color, alpha=0.18, linewidth=0)
+        ax.axvline(position, color=color, linewidth=0.9, alpha=0.5)
+        ax.scatter([position], [point_y], color=color, edgecolor="white", linewidth=0.6, s=32, zorder=4)
+        ax.annotate(
+            label,
+            xy=(position, point_y),
+            xytext=(label_x, label_y),
+            textcoords="data",
+            ha="left",
+            va="center",
+            fontsize=6.7,
+            color="#263238",
+            arrowprops={"arrowstyle": "-", "color": color, "alpha": 0.7, "linewidth": 0.8},
+            bbox={"boxstyle": "round,pad=0.25", "facecolor": "white", "edgecolor": color, "alpha": 0.92, "linewidth": 0.75},
+        )
+    ax.set_title(title, fontsize=14, weight="bold", pad=10)
+    ax.set_xlabel("Residus C-α")
+    ax.set_ylabel("Distància (nm)")
+    ax.grid(True, axis="y", linestyle="-", alpha=0.18)
+    ax.grid(True, axis="x", linestyle=":", alpha=0.08)
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
+    ax.spines["left"].set_color("#b0b0b0")
+    ax.spines["bottom"].set_color("#b0b0b0")
+    ax.spines["top"].set_color("#b0b0b0")
+    ax.spines["right"].set_color("#b0b0b0")
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
 
 
 def save_catalytic_preorganization_plot(
@@ -223,16 +290,34 @@ def save_catalytic_preorganization_plot(
         return
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig, ax_distance = plt.subplots(figsize=(9, 5), dpi=300)
-    for label, values in distance_series_nm.items():
-        ax_distance.plot(times_ns, values, linewidth=1.2, label=label)
-    ax_distance.set_title("Distàncies catalítiques")
+    fig, ax_distance = plt.subplots(figsize=(9.5, 5.4), dpi=300)
+    fig.patch.set_facecolor("white")
+    ax_distance.set_facecolor("white")
+    palette = ["#1f77b4", "#ff7f0e", "#2ca02c"]
+    linestyles = ["-", "-", "-", "--"]
+    for color_idx, (label, values) in enumerate(distance_series_nm.items()):
+        ax_distance.plot(
+            times_ns,
+            values,
+            linewidth=2.0,
+            color=palette[color_idx % len(palette)],
+            linestyle=linestyles[color_idx % len(linestyles)],
+            label=CATALYTIC_DISTANCE_DISPLAY_LABELS.get(label, label),
+        )
+    ax_distance.set_title("Distàncies catalítiques", fontsize=14, weight="bold", pad=10)
     ax_distance.set_xlabel("Temps (ns)")
     ax_distance.set_ylabel("Distància (nm)")
-    ax_distance.grid(True, linestyle="--", alpha=0.4)
+    ax_distance.grid(True, axis="y", linestyle="-", alpha=0.18)
+    ax_distance.grid(True, axis="x", linestyle=":", alpha=0.08)
+    ax_distance.spines["top"].set_visible(True)
+    ax_distance.spines["right"].set_visible(True)
+    ax_distance.spines["left"].set_color("#b0b0b0")
+    ax_distance.spines["bottom"].set_color("#b0b0b0")
+    ax_distance.spines["top"].set_color("#b0b0b0")
+    ax_distance.spines["right"].set_color("#b0b0b0")
 
     if distance_series_nm:
-        ax_distance.legend(fontsize=7, loc="best")
+        ax_distance.legend(fontsize=6.7, loc="best", frameon=True, facecolor="white", edgecolor="#d6d6d6")
     fig.tight_layout()
     fig.savefig(output_path)
     plt.close(fig)
@@ -253,17 +338,28 @@ def save_contact_bar_plot(output_path: Path, contact_rows: list[list[object]], t
 
     labels = [str(row[0]) for row in contact_rows]
     occupancies = [float(row[3]) for row in contact_rows]
+    bar_colors = ["#1f77b4", "#ff7f0e"]
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(9, 5), dpi=300)
-    plt.bar(labels, occupancies, color="tab:green", alpha=0.8)
-    plt.title(title)
-    plt.xlabel("Residus del centre actiu")
-    plt.ylabel("Ocupació de contacte (%)")
-    plt.xticks(rotation=45, ha="right")
-    plt.grid(True, axis="y", linestyle="--", alpha=0.4)
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+    fig, ax = plt.subplots(figsize=(9.5, 5.4), dpi=300)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+    ax.bar(labels, occupancies, color=[bar_colors[idx % len(bar_colors)] for idx in range(len(labels))], alpha=0.84, edgecolor="white", linewidth=0.8)
+    ax.set_title(title, fontsize=14, weight="bold", pad=10)
+    ax.set_xlabel("Residus del centre actiu")
+    ax.set_ylabel("Ocupació de contacte (%)")
+    ax.tick_params(axis="x", rotation=45)
+    for tick in ax.get_xticklabels():
+        tick.set_ha("right")
+    ax.grid(True, axis="y", linestyle="-", alpha=0.18)
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
+    ax.spines["left"].set_color("#b0b0b0")
+    ax.spines["bottom"].set_color("#b0b0b0")
+    ax.spines["top"].set_color("#b0b0b0")
+    ax.spines["right"].set_color("#b0b0b0")
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
 
 def iter_run_dirs(data_dir: Path, kind_name: str, requested_runs: list[str] | None) -> list[Path]:
     kind_dir = data_dir / kind_name
@@ -786,16 +882,16 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             kind_output_dir / "ligand_hydrogen_bonds.png",
             times_ns,
             ligand_hbond_counts,
-            f"{system_label}: ponts lligand-proteïna",
+            "Ponts d'hidrogen lligand - proteïna",
             "Temps (ns)",
-            "Nombre de ponts",
+            "Ponts d'hidrogen",
         )
         summary = [
             f"System: {kind.name}",
             f"Runs units: {', '.join(run_dir.name for run_dir in run_dirs)}",
             f"Frames totals: {joined.n_frames}",
             f"Temps final concatenat (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final concatenat (ns): 0.000000",
-            f"Ponts d'hidrogen proteïna-lligand mitjans ({args.ligand_resname}): {float(np.mean(ligand_hbond_counts)):.6f}",
+            f"Ponts d'hidrogen lligand - proteïna mitjans ({args.ligand_resname}): {float(np.mean(ligand_hbond_counts)):.6f}",
         ]
         (kind_output_dir / "ligand_hydrogen_bonds_summary.txt").write_text("\n".join(summary) + "\n", encoding="utf-8")
         print(f"Anàlisi de ponts proteïna-lligand desada a: {kind_output_dir}")
@@ -837,7 +933,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         kind_output_dir / "rmsd.png",
         times_ns,
         rmsd,
-        f"{system_label}: RMSD de la proteïna",
+        "RMSD",
         "Temps (ns)",
         "Distància (nm)",
     )
@@ -845,7 +941,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         kind_output_dir / "radius_of_gyration.png",
         times_ns,
         rg,
-        f"{system_label}: radi de gir",
+        "Radi de gir",
         "Temps (ns)",
         "Distància (nm)",
     )
@@ -853,7 +949,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         kind_output_dir / "rmsf_ca.png",
         residues,
         rmsf,
-        f"{system_label}: flexibilitat C-α",
+        "RMSF",
     )
 
     hbond_summary = ["Ponts d'hidrogen: omesos"]
@@ -868,9 +964,9 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             kind_output_dir / "hydrogen_bonds.png",
             times_ns,
             hbond_counts,
-            f"{system_label}: ponts d'hidrogen",
+            "Ponts d'hidrogen totals",
             "Temps (ns)",
-            "Nombre de ponts d'hidrogen",
+            "Ponts d'hidrogen",
         )
         hbond_summary = [f"Ponts d'hidrogen mitjans: {float(np.mean(hbond_counts)):.6f}"]
 
@@ -888,12 +984,12 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
             kind_output_dir / "ligand_hydrogen_bonds.png",
             times_ns,
             ligand_hbond_counts,
-            f"{system_label}: ponts lligand-proteïna",
+            "Ponts d'hidrogen lligand - proteïna",
             "Temps (ns)",
-            "Nombre de ponts d'hidrogen",
+            "Ponts d'hidrogen",
         )
         hbond_summary.append(
-            f"Ponts d'hidrogen proteïna-lligand mitjans ({args.ligand_resname}): "
+            f"Ponts d'hidrogen lligand - proteïna mitjans ({args.ligand_resname}): "
             f"{float(np.mean(ligand_hbond_counts)):.6f}"
         )
 
@@ -905,7 +1001,7 @@ def analyze_joined(md, kind: SimulationKind, run_dirs: list[Path], output_dir: P
         f"Topology: {kind.topology}",
         f"Frames totals: {joined.n_frames}",
         f"Temps final (ns): {times_ns[-1]:.6f}" if len(times_ns) else "Temps final (ns): 0.000000",
-        f"RMSD mitjà proteïna (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitjà proteïna (nm): 0.000000",
+        f"RMSD mitjà de la proteïna (nm): {float(np.mean(rmsd)):.6f}" if len(rmsd) else "RMSD mitjà de la proteïna (nm): 0.000000",
         f"Radi de gir mitjà (nm): {float(np.mean(rg)):.6f}" if len(rg) else "Radi de gir mitjà (nm): 0.000000",
         f"RMSF C-α màxim (nm): {float(np.max(rmsf)):.6f}" if len(rmsf) else "RMSF C-α màxim (nm): 0.000000",
         *hbond_summary,

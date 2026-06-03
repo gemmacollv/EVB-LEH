@@ -28,8 +28,8 @@ ACTIVE_SITE_DISPLAY_LABELS = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Compara els resultats APO i HOLO i genera grafics "
-            "superposats per veure les diferencies principals."
+            "Compara els resultats APO i HOLO i genera gràfics "
+            "superposats per veure les diferències principals."
         )
     )
     parser.add_argument(
@@ -42,7 +42,7 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=DEFAULT_OUTPUT_DIR,
-        help=f"Directori on desar la comparacio. Per defecte: {DEFAULT_OUTPUT_DIR}.",
+        help=f"Directori on desar la comparació. Per defecte: {DEFAULT_OUTPUT_DIR}.",
     )
     return parser.parse_args()
 
@@ -111,17 +111,34 @@ def save_overlay_plot(
     import matplotlib.pyplot as plt
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(8, 5), dpi=300)
-    plt.plot(apo_x, apo_y, label="APO", linewidth=1.4)
-    plt.plot(holo_x, holo_y, label="HOLO", linewidth=1.4)
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.grid(True, linestyle="--", alpha=0.4)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
+    combined = np.concatenate([apo_y, holo_y]) if len(apo_y) or len(holo_y) else np.array([0.0, 1.0])
+    finite = combined[np.isfinite(combined)]
+    y_min = float(np.min(finite)) if len(finite) else 0.0
+    y_max = float(np.max(finite)) if len(finite) else 1.0
+    y_span = max(y_max - y_min, 0.01)
+    y_floor = max(0.0, y_min - 0.08 * y_span)
+
+    fig, ax = plt.subplots(figsize=(9, 5.2), dpi=300)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+    ax.plot(apo_x, apo_y, label="APO", linewidth=2.0, color="#1f77b4")
+    ax.plot(holo_x, holo_y, label="HOLO", linewidth=2.0, color="#ff7f0e")
+    ax.set_ylim(y_floor, y_max + 0.12 * y_span)
+    ax.set_title(title, fontsize=14, weight="bold", pad=10)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.grid(True, axis="y", linestyle="-", alpha=0.18)
+    ax.grid(True, axis="x", linestyle=":", alpha=0.08)
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
+    ax.spines["left"].set_color("#b0b0b0")
+    ax.spines["bottom"].set_color("#b0b0b0")
+    ax.spines["top"].set_color("#b0b0b0")
+    ax.spines["right"].set_color("#b0b0b0")
+    ax.legend(frameon=True, facecolor="white", edgecolor="#d6d6d6")
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
 
 
 def save_rmsf_plot(
@@ -149,38 +166,61 @@ def save_rmsf_plot(
             for idx, residue in enumerate(apo_residues[:n_points])
             if residue in ACTIVE_SITE_DISPLAY_LABELS
         ]
-    colors = plt.get_cmap("tab10").colors
+    site_colors = ["#1f77b4", "#ff7f0e"]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(10.5, 5.5), dpi=300)
-    ax.plot(x_values, apo[:n_points], label="APO", linewidth=1.4)
-    ax.plot(x_values, holo[:n_points], label="HOLO", linewidth=1.4)
+    fig, ax = plt.subplots(figsize=(12, 6.2), dpi=300)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+    combined = np.concatenate([apo[:n_points], holo[:n_points]]) if n_points else np.array([0.0, 1.0])
+    y_min = float(np.min(combined))
+    y_max = float(np.max(combined))
+    y_span = max(y_max - y_min, 0.01)
+    y_floor = max(0.0, y_min - 0.08 * y_span)
+    y_ceiling = y_max + 0.18 * y_span
+    ax.set_ylim(y_floor, y_ceiling)
+    ax.plot(x_values, apo[:n_points], label="APO", linewidth=2.0, color="#1f77b4")
+    ax.plot(x_values, holo[:n_points], label="HOLO", linewidth=2.0, color="#ff7f0e")
+    label_lanes = [0.74, 0.56, 0.38]
     for color_idx, (position, _residue, label) in enumerate(active_points):
-        color = colors[color_idx % len(colors)]
-        y_value = max(apo[position - 1], holo[position - 1])
-        ax.axvline(position, color=color, linewidth=0.8, alpha=0.35)
+        color = site_colors[color_idx % len(site_colors)]
+        point_y = max(float(apo[position - 1]), float(holo[position - 1]))
+        label_y = y_min + y_span * label_lanes[color_idx % len(label_lanes)]
+        label_x = min(position + 1.2, n_points)
+        ax.axvspan(position - 0.55, position + 0.55, color=color, alpha=0.18, linewidth=0)
+        ax.axvline(position, color=color, linewidth=0.9, alpha=0.5)
         ax.scatter(
             [position, position],
             [apo[position - 1], holo[position - 1]],
             color=[color],
-            s=16,
+            edgecolor="white",
+            linewidth=0.6,
+            s=32,
             zorder=4,
         )
         ax.annotate(
             label,
-            xy=(position, y_value),
-            xytext=(0, 8 + (color_idx % 2) * 7),
-            textcoords="offset points",
-            rotation=70,
+            xy=(position, point_y),
+            xytext=(label_x, label_y),
+            textcoords="data",
             ha="left",
-            va="bottom",
-            fontsize=6.5,
-            color=color,
+            va="center",
+            fontsize=6.7,
+            color="#263238",
+            arrowprops={"arrowstyle": "-", "color": color, "alpha": 0.7, "linewidth": 0.8},
+            bbox={"boxstyle": "round,pad=0.25", "facecolor": "white", "edgecolor": color, "alpha": 0.92, "linewidth": 0.75},
         )
-    ax.set_title("APO vs HOLO: flexibilitat C-α")
+    ax.set_title("RMSF", fontsize=14, weight="bold", pad=10)
     ax.set_xlabel("Residus C-α")
     ax.set_ylabel("Distància (nm)")
-    ax.grid(True, linestyle="--", alpha=0.4)
+    ax.grid(True, axis="y", linestyle="-", alpha=0.18)
+    ax.grid(True, axis="x", linestyle=":", alpha=0.08)
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
+    ax.spines["left"].set_color("#b0b0b0")
+    ax.spines["bottom"].set_color("#b0b0b0")
+    ax.spines["top"].set_color("#b0b0b0")
+    ax.spines["right"].set_color("#b0b0b0")
     ax.legend()
     fig.tight_layout()
     fig.savefig(output_path)
@@ -201,7 +241,7 @@ def main() -> None:
     try:
         import matplotlib  # noqa: F401
     except ModuleNotFoundError as exc:
-        raise SystemExit("Per executar aquest script cal instal-lar matplotlib.") from exc
+        raise SystemExit("Per executar aquest script cal instal·lar matplotlib.") from exc
 
     comparisons = [
         (
@@ -209,7 +249,7 @@ def main() -> None:
             "time_ns",
             "rmsd_nm",
             "rmsd_apo_holo.png",
-            "APO vs HOLO: RMSD de la proteina",
+            "RMSD",
             "Temps (ns)",
             "Distància (nm)",
         ),
@@ -218,7 +258,7 @@ def main() -> None:
             "time_ns",
             "rg_nm",
             "radi_gir_apo_holo.png",
-            "APO vs HOLO: radi de gir",
+            "Radi de gir",
             "Temps (ns)",
             "Distància (nm)",
         ),
@@ -227,9 +267,9 @@ def main() -> None:
             "time_ns",
             "n_hydrogen_bonds",
             "ponts_hidrogen_apo_holo.png",
-            "APO vs HOLO: ponts d.hidrogen",
+            "Ponts d'hidrogen totals",
             "Temps (ns)",
-            "Nombre de ponts d'hidrogen",
+            "Ponts d'hidrogen",
         ),
     ]
 
@@ -272,11 +312,11 @@ def main() -> None:
     apo_summary = read_summary(apo_dir / "summary.txt")
     holo_summary = read_summary(holo_dir / "summary.txt")
     report = [
-        "Comparacio APO vs HOLO",
+        "Comparació APO vs HOLO",
         f"Input: {input_dir}",
         f"Output: {output_dir}",
         "",
-        "Grafics generats:",
+        "Gràfics generats:",
         "- rmsd_apo_holo.png",
         "- radi_gir_apo_holo.png",
         "- rmsf_apo_holo.png",
@@ -288,7 +328,7 @@ def main() -> None:
         report.append(f"{key}: APO={apo_summary.get(key, 'n/a')} | HOLO={holo_summary.get(key, 'n/a')}")
 
     (output_dir / "resum_comparatiu.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
-    print(f"Comparacio desada a: {output_dir}")
+    print(f"Comparació desada a: {output_dir}")
 
 
 if __name__ == "__main__":
